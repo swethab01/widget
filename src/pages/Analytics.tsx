@@ -9,15 +9,20 @@ export function Analytics() {
     const [screenHistory, setScreenHistory] = useState<{ date: string; totalSeconds: number; codingSeconds: number }[]>([])
 
     useEffect(() => {
-        window.electronAPI.score.getHistory(7).then((h) => setHistory(h || []))
+        // Fetch 35 days for heatmap, 7 days for bar charts
+        window.electronAPI.score.getHistory(35).then((h) => setHistory(h || []))
         window.electronAPI.screenTime.getSummary().then((h) => setScreenHistory(h || []))
     }, [])
+
+    const recent7 = history.slice(-7)
 
     const avgScore = history.length > 0
         ? Math.round(history.reduce((s, d) => s + d.score, 0) / history.length)
         : 0
 
     const totalCodingSeconds = screenHistory.reduce((s, d) => s + d.codingSeconds, 0)
+    const totalScreenSeconds = screenHistory.reduce((s, d) => s + d.totalSeconds, 0)
+    const overallDevRate = totalScreenSeconds > 0 ? Math.round((totalCodingSeconds / totalScreenSeconds) * 100) : 0
 
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     const getDay = (dateStr: string) => {
@@ -25,74 +30,127 @@ export function Analytics() {
         return days[d.getDay() === 0 ? 6 : d.getDay() - 1]
     }
 
-    const maxScore = Math.max(...history.map((h) => h.score), 1)
+    const maxScore = Math.max(...recent7.map((h) => h.score), 1)
+
+    // Heatmap cell color helper
+    const getHeatmapColor = (score: number) => {
+        if (!score || score <= 0) return 'bg-white/[0.04] border-white/[0.06]'
+        if (score < 40) return 'bg-emerald-950/70 border-emerald-800/40 text-emerald-300'
+        if (score < 70) return 'bg-emerald-700/80 border-emerald-600/50 text-white'
+        if (score < 85) return 'bg-emerald-500 border-emerald-400 text-white'
+        return 'bg-emerald-400 border-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.4)] text-black'
+    }
 
     return (
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide animate-fade-in">
-            {/* Weekly summary */}
-            <div className="grid grid-cols-2 gap-2">
-                <Stat label="Avg Score" value={`${avgScore}/100`} color="text-accent" />
-                <Stat label="Coding Time" value={formatSecondsShort(totalCodingSeconds)} color="text-accent-green" />
+        <div className="flex-1 h-full overflow-y-auto p-3 space-y-3 scrollbar-hide animate-fade-in max-w-2xl mx-auto">
+            {/* macOS KPI Metric Tiles */}
+            <div className="grid grid-cols-3 gap-2">
+                <MacStatCard label="Average Score" value={`${avgScore}`} unit="/100" color="text-blue-400" />
+                <MacStatCard label="Coding Time" value={formatSecondsShort(totalCodingSeconds)} color="text-emerald-400" />
+                <MacStatCard label="Dev Ratio" value={`${overallDevRate}%`} color="text-purple-400" />
             </div>
 
-            {/* Score history chart */}
-            <Card>
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-sm">📊</span>
-                        <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">7-Day Score</span>
+            {/* 35-Day (5-Week) GitHub-style Contribution Heatmap */}
+            <Card className="relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2.5">
+                    <span className="text-xs font-semibold text-white/90 tracking-tight uppercase">
+                        35-Day Activity Heatmap
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[9px] text-white/40 font-mono">
+                        <span>Less</span>
+                        <span className="w-2 h-2 rounded-xs bg-white/[0.04]" />
+                        <span className="w-2 h-2 rounded-xs bg-emerald-900" />
+                        <span className="w-2 h-2 rounded-xs bg-emerald-700" />
+                        <span className="w-2 h-2 rounded-xs bg-emerald-500" />
+                        <span className="w-2 h-2 rounded-xs bg-emerald-400" />
+                        <span>More</span>
                     </div>
                 </div>
 
-                {history.length > 0 ? (
-                    <div className="flex items-end justify-between gap-1 h-20">
-                        {history.map((d, i) => {
+                {/* Heatmap Grid (5 rows of 7 days) */}
+                <div className="grid grid-cols-7 gap-1.5 p-2 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                    {history.map((day, idx) => (
+                        <div
+                            key={idx}
+                            className={`h-7 rounded-lg border flex flex-col items-center justify-center cursor-pointer transition-all hover:scale-105 hover:z-10 ${getHeatmapColor(
+                                day.score
+                            )}`}
+                            title={`${day.date}: Score ${day.score}`}
+                        >
+                            <span className="text-[8px] font-mono font-bold leading-none opacity-80">
+                                {day.score > 0 ? day.score : ''}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="text-[9px] text-white/40 font-mono text-center mt-2">
+                    Daily developer consistency and momentum index
+                </div>
+            </Card>
+
+            {/* 7-Day Score Pillar Chart (Apple style) */}
+            <Card className="relative overflow-hidden">
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-white/90 tracking-tight uppercase">
+                        7-Day Performance
+                    </span>
+                    <span className="text-[10px] text-white/40 font-mono">Scores</span>
+                </div>
+
+                {recent7.length > 0 ? (
+                    <div className="flex items-end justify-between gap-2 h-24 px-2">
+                        {recent7.map((d, i) => {
                             const pct = (d.score / maxScore) * 100
-                            const color = d.score >= 80 ? 'bg-accent-green' : d.score >= 60 ? 'bg-accent' : 'bg-yellow-500'
+                            const color =
+                                d.score >= 80 ? 'bg-emerald-400' : d.score >= 60 ? 'bg-blue-500' : 'bg-amber-400'
                             return (
-                                <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                                    <span className="text-[9px] text-text-muted font-mono">{d.score || ''}</span>
-                                    <div className="w-full flex items-end" style={{ height: '52px' }}>
+                                <div key={i} className="flex flex-col items-center gap-1.5 flex-1 group cursor-pointer">
+                                    <span className="text-[10px] text-white/60 font-mono font-bold group-hover:text-white transition-colors">
+                                        {d.score || 0}
+                                    </span>
+                                    <div className="w-full flex items-end justify-center" style={{ height: '56px' }}>
                                         <div
-                                            className={`w-full rounded-t ${color} transition-all duration-700`}
-                                            style={{ height: `${Math.max(pct, 4)}%` }}
+                                            className={`w-full max-w-[28px] rounded-t-lg ${color} transition-all duration-500 group-hover:brightness-125 shadow-sm`}
+                                            style={{ height: `${Math.max(pct, 6)}%` }}
                                         />
                                     </div>
-                                    <span className="text-[9px] text-text-muted">{getDay(d.date)}</span>
+                                    <span className="text-[10px] text-white/40 font-medium">{getDay(d.date)}</span>
                                 </div>
                             )
                         })}
                     </div>
                 ) : (
-                    <div className="text-[11px] text-text-muted text-center py-6">
-                        Data will appear after your first active day
+                    <div className="text-xs text-white/40 text-center py-6 font-mono">
+                        Data will record after your first active day
                     </div>
                 )}
             </Card>
 
-            {/* Score breakdown this week */}
-            <Card>
-                <div className="flex items-center gap-1.5 mb-3">
-                    <span className="text-sm">⚡</span>
-                    <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">Score Components</span>
+            {/* Score Components breakdown */}
+            <Card className="relative overflow-hidden">
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-white/90 tracking-tight uppercase">
+                        Score Breakdown (Past 7 Days)
+                    </span>
                 </div>
 
-                {history.length > 0 ? (
-                    <div className="space-y-2">
+                {recent7.length > 0 ? (
+                    <div className="space-y-2.5">
                         {[
-                            { label: 'Task Completion', key: 'tasks_pts' as keyof DailyScore, max: 25, color: 'bg-accent' },
-                            { label: 'Focus Sessions', key: 'focus_pts' as keyof DailyScore, max: 20, color: 'bg-accent-purple' },
-                            { label: 'Coding Time', key: 'coding_pts' as keyof DailyScore, max: 20, color: 'bg-accent-green' },
-                            { label: 'Low Distraction', key: 'distraction_pts' as keyof DailyScore, max: 15, color: 'bg-yellow-500' },
+                            { label: 'Task Completion', key: 'tasks_pts' as keyof DailyScore, max: 25, color: 'bg-blue-500' },
+                            { label: 'Focus Blocks', key: 'focus_pts' as keyof DailyScore, max: 20, color: 'bg-purple-500' },
+                            { label: 'Coding Sessions', key: 'coding_pts' as keyof DailyScore, max: 20, color: 'bg-emerald-500' },
+                            { label: 'Low Distraction Control', key: 'distraction_pts' as keyof DailyScore, max: 15, color: 'bg-amber-500' },
                         ].map((c) => {
                             const avgPts = Math.round(
-                                history.reduce((s, d) => s + ((d[c.key] as number) || 0), 0) / Math.max(history.length, 1)
+                                recent7.reduce((s, d) => s + ((d[c.key] as number) || 0), 0) / Math.max(recent7.length, 1)
                             )
                             return (
-                                <div key={c.key}>
-                                    <div className="flex items-center justify-between mb-0.5">
-                                        <span className="text-[11px] text-text-secondary">{c.label}</span>
-                                        <span className="text-[10px] text-text-muted font-mono">avg {avgPts}/{c.max}</span>
+                                <div key={c.key} className="p-2 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs font-medium text-white/80">{c.label}</span>
+                                        <span className="text-[10px] text-white/50 font-mono">avg {avgPts}/{c.max} pts</span>
                                     </div>
                                     <ProgressBar value={avgPts} max={c.max} color={c.color} height="h-1.5" />
                                 </div>
@@ -100,59 +158,23 @@ export function Analytics() {
                         })}
                     </div>
                 ) : (
-                    <div className="text-[11px] text-text-muted text-center py-4">Complete tasks to see analytics</div>
-                )}
-            </Card>
-
-            {/* Screen time history */}
-            <Card>
-                <div className="flex items-center gap-1.5 mb-3">
-                    <span className="text-sm">⏱</span>
-                    <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">Screen Time (7 Days)</span>
-                </div>
-                {screenHistory.length > 0 ? (
-                    <div className="space-y-1.5">
-                        {screenHistory.slice(-7).map((d, i) => {
-                            const codingPct = d.totalSeconds > 0 ? (d.codingSeconds / d.totalSeconds) * 100 : 0
-                            return (
-                                <div key={i} className="flex items-center gap-2">
-                                    <span className="text-[10px] text-text-muted w-8">{getDay(d.date)}</span>
-                                    <div className="flex-1">
-                                        <ProgressBar value={d.totalSeconds} max={8 * 3600} color="bg-surface-hover" height="h-1.5" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <ProgressBar value={codingPct} max={100} color="bg-accent-green" height="h-1.5" />
-                                    </div>
-                                    <span className="text-[10px] text-text-muted font-mono w-12 text-right">
-                                        {formatSecondsShort(d.totalSeconds)}
-                                    </span>
-                                </div>
-                            )
-                        })}
-                        <div className="flex items-center gap-4 mt-2">
-                            <div className="flex items-center gap-1">
-                                <div className="w-3 h-1 bg-surface-hover rounded" />
-                                <span className="text-[9px] text-text-muted">Total</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <div className="w-3 h-1 bg-accent-green rounded" />
-                                <span className="text-[9px] text-text-muted">Coding %</span>
-                            </div>
-                        </div>
+                    <div className="text-xs text-white/40 text-center py-4 font-mono">
+                        Complete focus sessions and tasks to populate breakdown
                     </div>
-                ) : (
-                    <div className="text-[11px] text-text-muted text-center py-4">Screen time data will appear here</div>
                 )}
             </Card>
         </div>
     )
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color: string }) {
+function MacStatCard({ label, value, unit, color }: { label: string; value: string; unit?: string; color: string }) {
     return (
-        <div className="bg-surface-card border border-surface-border rounded-xl px-3 py-2.5">
-            <div className="text-[10px] text-text-muted mb-0.5">{label}</div>
-            <div className={`text-lg font-mono font-bold ${color}`}>{value}</div>
-        </div>
+        <Card className="!p-2.5">
+            <div className="text-[10px] text-white/50 font-medium uppercase tracking-tight mb-1 truncate">{label}</div>
+            <div className={`text-xl font-mono font-bold ${color} tracking-tight`}>
+                {value}
+                {unit && <span className="text-xs text-white/40 font-normal font-sans ml-0.5">{unit}</span>}
+            </div>
+        </Card>
     )
 }

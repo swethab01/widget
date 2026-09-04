@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Card } from './ui/Card'
 import { ProgressBar } from './ui/ProgressBar'
-import { Badge } from './ui/Badge'
 import { getPriorityDot } from '../utils/time'
 import type { Task, NewTask, Priority } from '../types'
 
@@ -12,8 +11,9 @@ interface TaskWidgetProps {
     onAdd: (task: NewTask) => Promise<Task>
     onToggle: (id: number) => Promise<void | Task | undefined>
     onDelete: (id: number) => Promise<void>
-    onUpdate: (id: number, patch: Partial<Task>) => Promise<Task | null>
+    onUpdate?: (id: number, patch: Partial<Task>) => Promise<Task | null>
     showQuickAdd?: boolean
+    onFocusTask?: (taskId: number, minutes: number) => void
 }
 
 export function TaskWidget({
@@ -24,9 +24,10 @@ export function TaskWidget({
     onToggle,
     onDelete,
     showQuickAdd = false,
+    onFocusTask,
 }: TaskWidgetProps) {
     const [showAddForm, setShowAddForm] = useState(showQuickAdd)
-    const [editingId, setEditingId] = useState<number | null>(null)
+    const [filter, setFilter] = useState('All')
     const [newTitle, setNewTitle] = useState('')
     const [newPriority, setNewPriority] = useState<Priority>('medium')
     const [newCategory, setNewCategory] = useState('General')
@@ -48,104 +49,122 @@ export function TaskWidget({
         setShowAddForm(false)
     }
 
-    const priorityBadge = (p: Priority) => {
-        const map: Record<Priority, 'red' | 'yellow' | 'green'> = {
-            high: 'red',
-            medium: 'yellow',
-            low: 'green',
-        }
-        return map[p]
-    }
-
     const todoTasks = tasks.filter((t) => t.status === 'todo')
     const completedTasks = tasks.filter((t) => t.status === 'done')
 
+    const filteredTodo = todoTasks.filter((t) => {
+        if (filter === 'All') return true
+        if (filter === 'High') return t.priority === 'high'
+        return t.category.toLowerCase() === filter.toLowerCase()
+    })
+
     return (
-        <Card className="animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-3">
+        <Card className="animate-fade-in relative overflow-hidden">
+            {/* macOS Widget Header */}
+            <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm">🎯</span>
-                    <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">Today's Tasks</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-text-secondary font-mono">
+                    <span className="text-xs font-semibold text-white/90 tracking-tight uppercase">
+                        Today's Tasks
+                    </span>
+                    <span className="text-[10px] font-mono text-white/40">
                         {doneTasks.length}/{tasks.length}
                     </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
                     <button
                         onClick={() => setShowAddForm(!showAddForm)}
-                        className="w-5 h-5 rounded-md bg-accent/20 text-accent hover:bg-accent/30 transition-colors flex items-center justify-center text-xs font-bold"
+                        className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 text-[10px] font-semibold transition-all cursor-pointer"
                     >
-                        +
+                        + Add
                     </button>
                 </div>
             </div>
 
-            {/* Progress bar */}
-            <div className="mb-3">
+            {/* Progress Capsule */}
+            <div className="mb-2.5">
                 <ProgressBar
                     value={completionRate}
-                    color={completionRate >= 80 ? 'bg-accent-green' : completionRate >= 50 ? 'bg-accent' : 'bg-yellow-500'}
+                    color={completionRate >= 80 ? 'bg-emerald-500' : completionRate >= 50 ? 'bg-blue-500' : 'bg-amber-500'}
                     height="h-1"
-                    showLabel
                 />
             </div>
 
-            {/* Add form */}
+            {/* macOS Segmented Category Filters */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 mb-2 scrollbar-hide">
+                {['All', 'High', 'Coding', 'Study', 'General'].map((cat) => (
+                    <button
+                        key={cat}
+                        onClick={() => setFilter(cat)}
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-all cursor-pointer whitespace-nowrap ${
+                            filter === cat
+                                ? 'bg-white/15 text-white font-semibold'
+                                : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]'
+                        }`}
+                    >
+                        {cat === 'High' ? '🔥 Urgent' : cat}
+                    </button>
+                ))}
+            </div>
+
+            {/* Add Task Quick Form */}
             {showAddForm && (
-                <form onSubmit={handleAdd} className="mb-3 p-2 bg-surface-hover rounded-lg border border-surface-border animate-slide-up">
+                <form onSubmit={handleAdd} className="mb-2.5 p-2 rounded-xl bg-white/[0.05] border border-white/10 animate-slide-up">
                     <input
                         autoFocus
                         type="text"
                         placeholder="Task title..."
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
-                        className="w-full bg-transparent text-xs text-text-primary placeholder-text-muted outline-none mb-2"
+                        className="w-full bg-transparent text-xs text-white placeholder-white/30 outline-none mb-2 font-medium"
                     />
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
                         <select
                             value={newPriority}
                             onChange={(e) => setNewPriority(e.target.value as Priority)}
-                            className="bg-surface-border text-text-secondary text-xs rounded px-1.5 py-0.5 outline-none"
+                            className="bg-white/10 text-white/80 rounded-lg px-2 py-0.5 outline-none border border-white/10"
                         >
-                            <option value="high">🔴 High</option>
-                            <option value="medium">🟡 Medium</option>
-                            <option value="low">🟢 Low</option>
+                            <option value="high" className="bg-[#1a1d26]">🔴 High</option>
+                            <option value="medium" className="bg-[#1a1d26]">🟡 Medium</option>
+                            <option value="low" className="bg-[#1a1d26]">🟢 Low</option>
                         </select>
+
                         <select
                             value={newCategory}
                             onChange={(e) => setNewCategory(e.target.value)}
-                            className="bg-surface-border text-text-secondary text-xs rounded px-1.5 py-0.5 outline-none"
+                            className="bg-white/10 text-white/80 rounded-lg px-2 py-0.5 outline-none border border-white/10"
                         >
-                            {['General', 'Coding', 'Study', 'LeetCode', 'GitHub', 'Work', 'Personal'].map((c) => (
-                                <option key={c}>{c}</option>
+                            {['General', 'Coding', 'Study', 'LeetCode', 'GitHub', 'Work'].map((c) => (
+                                <option key={c} value={c} className="bg-[#1a1d26]">{c}</option>
                             ))}
                         </select>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] text-text-muted">⏱</span>
+
+                        <div className="flex items-center gap-1 font-mono text-[10px] text-white/50">
+                            <span>⏱</span>
                             <input
                                 type="number"
                                 min={5}
                                 max={480}
                                 value={newEst}
                                 onChange={(e) => setNewEst(Number(e.target.value))}
-                                className="w-12 bg-surface-border text-text-secondary text-xs rounded px-1 py-0.5 outline-none"
+                                className="w-10 bg-white/10 text-white rounded px-1 py-0.5 outline-none border border-white/10 text-right"
                             />
-                            <span className="text-[10px] text-text-muted">min</span>
+                            <span>m</span>
                         </div>
-                        <div className="flex gap-1 ml-auto">
+
+                        <div className="flex items-center gap-1.5 ml-auto">
                             <button
                                 type="button"
                                 onClick={() => setShowAddForm(false)}
-                                className="px-2 py-0.5 text-[10px] text-text-muted hover:text-text-secondary rounded"
+                                className="px-2 py-0.5 text-[10px] text-white/40 hover:text-white"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
-                                className="px-2 py-0.5 text-[10px] bg-accent rounded text-white hover:bg-blue-500 transition-colors"
+                                className="px-2.5 py-0.5 text-[10px] bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-semibold shadow-sm"
                             >
-                                Add
+                                Add Task
                             </button>
                         </div>
                     </div>
@@ -153,99 +172,87 @@ export function TaskWidget({
             )}
 
             {/* Task list */}
-            <div className="space-y-0.5 max-h-60 overflow-y-auto scrollbar-hide">
-                {/* Todo tasks */}
-                {todoTasks.map((task) => (
-                    <TaskRow
+            <div className="space-y-1 max-h-56 overflow-y-auto scrollbar-hide">
+                {filteredTodo.map((task) => (
+                    <div
                         key={task.id}
-                        task={task}
-                        onToggle={onToggle}
-                        onDelete={onDelete}
-                        isEditing={editingId === task.id}
-                        onEdit={() => setEditingId(task.id)}
-                        onCancelEdit={() => setEditingId(null)}
-                        priorityBadge={priorityBadge}
-                    />
+                        className="group flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.03] hover:border-white/[0.08] transition-all"
+                    >
+                        {/* Checkbox & title */}
+                        <div className="flex items-center gap-2 truncate flex-1 mr-2">
+                            <button
+                                onClick={() => onToggle(task.id)}
+                                className="w-4 h-4 rounded-md border border-white/20 hover:border-blue-400 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors"
+                            />
+                            <span className="text-[10px] flex-shrink-0">{getPriorityDot(task.priority)}</span>
+                            <span className="text-xs text-white/90 truncate font-medium">{task.title}</span>
+                        </div>
+
+                        {/* Actions right */}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="text-[9px] text-white/40 px-1.5 py-0.2 rounded-md bg-white/[0.04] font-mono">
+                                {task.category}
+                            </span>
+                            <span className="text-[9px] text-white/30 font-mono">
+                                {task.est_minutes}m
+                            </span>
+
+                            {/* 1-Click Focus Button */}
+                            {onFocusTask && (
+                                <button
+                                    onClick={() => onFocusTask(task.id, task.est_minutes || 25)}
+                                    className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-400 hover:text-blue-300 px-1.5 py-0.5 rounded bg-blue-500/15 transition-opacity cursor-pointer flex items-center gap-0.5"
+                                    title="Launch Focus Session for this task"
+                                >
+                                    <span>▶</span>
+                                    <span>Focus</span>
+                                </button>
+                            )}
+
+                            {/* Delete */}
+                            <button
+                                onClick={() => onDelete(task.id)}
+                                className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-rose-400 text-xs transition-opacity cursor-pointer ml-0.5"
+                                title="Delete task"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
                 ))}
 
-                {/* Completed tasks (collapsed) */}
+                {/* Completed Tasks section */}
                 {completedTasks.length > 0 && (
-                    <div className="pt-1">
-                        <div className="text-[10px] text-text-muted mb-0.5">Completed ({completedTasks.length})</div>
-                        {completedTasks.map((task) => (
-                            <TaskRow
+                    <div className="pt-2">
+                        <div className="text-[9px] text-white/30 uppercase tracking-wider font-mono mb-1">
+                            Completed ({completedTasks.length})
+                        </div>
+                        {completedTasks.slice(0, 3).map((task) => (
+                            <div
                                 key={task.id}
-                                task={task}
-                                onToggle={onToggle}
-                                onDelete={onDelete}
-                                isEditing={false}
-                                onEdit={() => { }}
-                                onCancelEdit={() => { }}
-                                priorityBadge={priorityBadge}
-                            />
+                                className="flex items-center justify-between px-2.5 py-1 rounded-xl opacity-40 hover:opacity-75 transition-opacity text-xs"
+                            >
+                                <div className="flex items-center gap-2 truncate flex-1">
+                                    <span className="text-emerald-400 text-xs">✓</span>
+                                    <span className="line-through text-white/60 truncate">{task.title}</span>
+                                </div>
+                                <button
+                                    onClick={() => onDelete(task.id)}
+                                    className="text-white/30 hover:text-rose-400 text-[10px]"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         ))}
                     </div>
                 )}
 
                 {tasks.length === 0 && (
-                    <div className="text-[11px] text-text-muted text-center py-4">
-                        No tasks yet — add one above ✨
+                    <div className="text-xs text-white/40 text-center py-4 font-mono">
+                        No tasks yet — hit + Add above
                     </div>
                 )}
             </div>
         </Card>
-    )
-}
-
-interface TaskRowProps {
-    task: Task
-    onToggle: (id: number) => Promise<void | Task | undefined>
-    onDelete: (id: number) => Promise<void>
-    isEditing: boolean
-    onEdit: () => void
-    onCancelEdit: () => void
-    priorityBadge: (p: Priority) => 'red' | 'yellow' | 'green'
-}
-
-function TaskRow({ task, onToggle, onDelete, priorityBadge }: TaskRowProps) {
-    const isDone = task.status === 'done'
-
-    return (
-        <div className={`group flex items-center gap-2 px-1.5 py-1.5 rounded-md hover:bg-surface-hover transition-colors ${isDone ? 'opacity-50' : ''}`}>
-            {/* Checkbox */}
-            <button
-                onClick={() => onToggle(task.id)}
-                className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${isDone
-                        ? 'bg-accent-green border-accent-green text-white'
-                        : 'border-surface-border hover:border-accent'
-                    }`}
-            >
-                {isDone && <span className="text-[8px]">✓</span>}
-            </button>
-
-            {/* Priority dot */}
-            <span className="text-[10px] flex-shrink-0">{getPriorityDot(task.priority)}</span>
-
-            {/* Title */}
-            <span className={`flex-1 text-xs truncate ${isDone ? 'line-through text-text-muted' : 'text-text-primary'}`}>
-                {task.title}
-            </span>
-
-            {/* Category badge */}
-            <Badge variant={priorityBadge(task.priority)} size="xs">
-                {task.category}
-            </Badge>
-
-            {/* Est time */}
-            <span className="text-[10px] text-text-muted font-mono flex-shrink-0">{task.est_minutes}m</span>
-
-            {/* Delete button (hover) */}
-            <button
-                onClick={() => onDelete(task.id)}
-                className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-red-400 text-xs transition-opacity flex-shrink-0"
-            >
-                ✕
-            </button>
-        </div>
     )
 }

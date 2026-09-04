@@ -2,25 +2,14 @@ import { Card } from './ui/Card'
 import { formatSecondsShort } from '../utils/time'
 import type { ScreenTimeSummary } from '../types'
 
-const CATEGORY_ICON: Record<string, string> = {
-    Development: '💻',
-    Browser: '🌐',
-    Entertainment: '🎬',
-    Communication: '💬',
-    Productivity: '📋',
-    Study: '📚',
-    System: '⚙️',
-    Other: '📦',
-}
-
-const CATEGORY_COLOR: Record<string, string> = {
-    Development: 'text-accent-green',
-    Browser: 'text-blue-400',
-    Entertainment: 'text-red-400',
-    Communication: 'text-yellow-400',
-    Productivity: 'text-accent-purple',
-    Study: 'text-cyan-400',
-    Other: 'text-text-muted',
+const CATEGORY_COLORS: Record<string, { bar: string; text: string; dot: string }> = {
+    Development: { bar: 'bg-[#30d158]', text: 'text-[#30d158]', dot: '#30d158' },
+    Browser: { bar: 'bg-[#0a84ff]', text: 'text-[#0a84ff]', dot: '#0a84ff' },
+    Entertainment: { bar: 'bg-[#ff453a]', text: 'text-[#ff453a]', dot: '#ff453a' },
+    Communication: { bar: 'bg-[#ffd60a]', text: 'text-[#ffd60a]', dot: '#ffd60a' },
+    Productivity: { bar: 'bg-[#bf5af2]', text: 'text-[#bf5af2]', dot: '#bf5af2' },
+    Study: { bar: 'bg-[#64d2ff]', text: 'text-[#64d2ff]', dot: '#64d2ff' },
+    Other: { bar: 'bg-[#8e8e93]', text: 'text-[#8e8e93]', dot: '#8e8e93' },
 }
 
 interface ScreenTimeWidgetProps {
@@ -29,110 +18,103 @@ interface ScreenTimeWidgetProps {
 }
 
 export function ScreenTimeWidget({ summary, loading }: ScreenTimeWidgetProps) {
-    const productivePct =
-        summary.totalSeconds > 0
-            ? Math.round((summary.productiveSeconds / summary.totalSeconds) * 100)
-            : 0
-
-    const entertainPct =
-        summary.totalSeconds > 0
-            ? Math.round((summary.entertainmentSeconds / summary.totalSeconds) * 100)
-            : 0
-
     if (loading) {
         return (
             <Card className="animate-pulse">
-                <div className="h-4 bg-surface-border rounded mb-2 w-24" />
-                <div className="h-8 bg-surface-border rounded w-16" />
+                <div className="h-4 bg-white/10 rounded mb-2 w-24" />
+                <div className="h-8 bg-white/10 rounded w-16" />
             </Card>
         )
     }
 
+    const total = summary.totalSeconds || 1
+    const codingPct = (summary.codingSeconds / total) * 100
+    const entertainPct = (summary.entertainmentSeconds / total) * 100
+    const commPct = (summary.communicationSeconds / total) * 100
+    const otherPct = Math.max(0, 100 - codingPct - entertainPct - commPct)
+
     return (
-        <Card>
-            <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-1.5">
-                    <span className="text-sm">⏱</span>
-                    <span className="text-xs font-semibold text-text-primary uppercase tracking-wider">Screen Time</span>
+        <Card className="relative overflow-hidden">
+            {/* macOS Screen Time Header */}
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-white/90 tracking-tight uppercase">
+                    Screen Time
+                </span>
+                <span className="text-[10px] text-white/40 font-mono">
+                    {summary.totalSeconds > 0 ? 'Live Local' : 'Tracking…'}
+                </span>
+            </div>
+
+            {/* Total time hero */}
+            <div className="flex items-baseline justify-between mb-3">
+                <div className="text-2xl font-bold font-mono text-white tracking-tight">
+                    {formatSecondsShort(summary.totalSeconds)}
                 </div>
-                {summary.totalSeconds === 0 && (
-                    <span className="text-[10px] text-text-muted">tracking…</span>
+                <div className="text-[11px] font-medium text-emerald-400 font-mono">
+                    {Math.round(codingPct)}% Dev Focus
+                </div>
+            </div>
+
+            {/* macOS Proportional Stacked Bar */}
+            <div className="w-full h-3 rounded-full bg-white/[0.06] overflow-hidden flex mb-3 p-0.5 border border-white/[0.08]">
+                {summary.totalSeconds > 0 ? (
+                    <>
+                        <div
+                            className="h-full bg-[#30d158] first:rounded-l-full last:rounded-r-full transition-all duration-700"
+                            style={{ width: `${codingPct}%` }}
+                            title={`Coding: ${formatSecondsShort(summary.codingSeconds)}`}
+                        />
+                        <div
+                            className="h-full bg-[#0a84ff] transition-all duration-700"
+                            style={{ width: `${otherPct}%` }}
+                            title="Browser / Productivity"
+                        />
+                        <div
+                            className="h-full bg-[#ffd60a] transition-all duration-700"
+                            style={{ width: `${commPct}%` }}
+                            title={`Communication: ${formatSecondsShort(summary.communicationSeconds)}`}
+                        />
+                        <div
+                            className="h-full bg-[#ff453a] first:rounded-l-full last:rounded-r-full transition-all duration-700"
+                            style={{ width: `${entertainPct}%` }}
+                            title={`Entertainment: ${formatSecondsShort(summary.entertainmentSeconds)}`}
+                        />
+                    </>
+                ) : (
+                    <div className="w-full h-full bg-white/10 rounded-full" />
                 )}
             </div>
 
-            {/* Total + Productive row */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-                <StatBlock
-                    label="Total"
-                    value={formatSecondsShort(summary.totalSeconds)}
-                    color="text-text-primary"
-                />
-                <StatBlock
-                    label="Coding"
-                    value={formatSecondsShort(summary.codingSeconds)}
-                    color="text-accent-green"
-                />
-                <StatBlock
-                    label="Productive"
-                    value={`${productivePct}%`}
-                    color="text-accent"
-                />
-                <StatBlock
-                    label="Entertainment"
-                    value={`${entertainPct}%`}
-                    color={entertainPct > 30 ? 'text-red-400' : 'text-text-secondary'}
-                />
-            </div>
+            {/* Top Apps List */}
+            {summary.apps.length > 0 ? (
+                <div className="space-y-1.5 pt-1 border-t border-white/[0.05]">
+                    {summary.apps.slice(0, 4).map((app, i) => {
+                        const name = app.appName || app.app_name || 'App'
+                        const secs = app.durationSeconds || app.duration_seconds || 0
+                        const cat = app.category || 'Other'
+                        const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.Other
 
-            {/* Top apps */}
-            {summary.apps.length > 0 && (
-                <div>
-                    <div className="text-[10px] text-text-muted mb-1.5 uppercase tracking-wider">Top Apps</div>
-                    <div className="space-y-1">
-                        {summary.apps.slice(0, 5).map((app, i) => {
-                            const name = app.appName || app.app_name || 'Unknown'
-                            const secs = app.durationSeconds || app.duration_seconds || 0
-                            const pct = summary.totalSeconds > 0 ? (secs / summary.totalSeconds) * 100 : 0
-                            const cat = app.category
-
-                            return (
-                                <div key={i} className="flex items-center gap-2">
-                                    <span className="text-[10px] w-3">{CATEGORY_ICON[cat] || '📦'}</span>
-                                    <span className={`text-[10px] flex-1 truncate ${CATEGORY_COLOR[cat] || 'text-text-secondary'}`}>
-                                        {name}
-                                    </span>
-                                    <div className="flex items-center gap-1.5">
-                                        <div className="w-12 h-1 bg-surface-border rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-1 rounded-full ${CATEGORY_COLOR[cat] ? 'bg-current' : 'bg-text-muted'}`}
-                                                style={{ width: `${Math.min(pct, 100)}%`, color: undefined }}
-                                            />
-                                        </div>
-                                        <span className="text-[10px] text-text-muted font-mono w-10 text-right">
-                                            {formatSecondsShort(secs)}
-                                        </span>
-                                    </div>
+                        return (
+                            <div key={i} className="flex items-center justify-between text-[11px]">
+                                <div className="flex items-center gap-1.5 truncate flex-1 mr-2">
+                                    <span
+                                        className="w-2 h-2 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: colors.dot }}
+                                    />
+                                    <span className="text-white/80 truncate font-medium">{name}</span>
                                 </div>
-                            )
-                        })}
-                    </div>
+                                <span className="text-white/40 font-mono text-[10px] whitespace-nowrap">
+                                    {formatSecondsShort(secs)}
+                                </span>
+                            </div>
+                        )
+                    })}
                 </div>
-            )}
-
-            {summary.totalSeconds === 0 && (
-                <div className="text-[11px] text-text-muted text-center py-2">
-                    Tracking started — data will appear shortly
+            ) : (
+                <div className="text-[10px] text-white/40 text-center py-2 font-mono">
+                    Foreground tracking active
                 </div>
             )}
         </Card>
-    )
-}
-
-function StatBlock({ label, value, color }: { label: string; value: string; color: string }) {
-    return (
-        <div className="bg-surface-hover rounded-lg px-2 py-1.5">
-            <div className="text-[10px] text-text-muted">{label}</div>
-            <div className={`text-sm font-mono font-semibold ${color}`}>{value}</div>
-        </div>
     )
 }

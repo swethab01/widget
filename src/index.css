@@ -18,26 +18,28 @@
   }
 
   body {
-    background-color: #0f1117;
-    color: #e8eaf0;
-    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #0b0d13;
+    color: #f1f3f9;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
     margin: 0;
     padding: 0;
+    letter-spacing: -0.011em;
   }
 
-  /* Scrollbar styling */
+  /* macOS Scrollbar styling */
   ::-webkit-scrollbar {
-    width: 3px;
+    width: 4px;
+    height: 4px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #252d3d;
-    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #4f8ef7;
+    background: rgba(255, 255, 255, 0.28);
   }
 
   /* Hide scrollbar utility */
@@ -49,26 +51,15 @@
     display: none;
   }
 
-  /* Custom checkbox */
-  input[type="checkbox"] {
-    accent-color: #4f8ef7;
-  }
-
-  /* Number input arrows */
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
   /* Selection */
   ::selection {
-    background: rgba(79, 142, 247, 0.3);
+    background: rgba(79, 142, 247, 0.35);
+    color: #ffffff;
   }
 }
 
 @layer utilities {
-  /* Drag region for Electron */
+  /* macOS Drag regions */
   .drag-region {
     -webkit-app-region: drag;
   }
@@ -76,27 +67,88 @@
     -webkit-app-region: no-drag;
   }
 
-  /* Smooth transitions */
-  .transition-smooth {
-    transition: all 0.2s ease-out;
+  /* macOS Acrylic Vibrancy */
+  .mac-vibrancy {
+    background: rgba(18, 20, 29, 0.72);
+    backdrop-filter: blur(40px) saturate(190%);
+    -webkit-backdrop-filter: blur(40px) saturate(190%);
+  }
+
+  /* macOS Widget Tile Foundation */
+  .mac-widget-tile {
+    position: relative;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+  }
+
+  /* macOS Segmented Pill */
+  .mac-segmented-pill {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    padding: 3px;
+  }
+
+  .mac-segment-item {
+    border-radius: 9999px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .mac-segment-active {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   }
 }
 
-/* Focus ring */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid rgba(79, 142, 247, 0.5);
-  outline-offset: 1px;
+/* Traffic Light Button Styles */
+.mac-traffic-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  position: relative;
 }
 
-/* Custom select */
-select {
-  cursor: pointer;
+.mac-traffic-light span {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: rgba(0, 0, 0, 0.65);
 }
 
-/* Progress bar animation */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+.mac-traffic-container:hover .mac-traffic-light span {
+  opacity: 1;
+}
+
+.traffic-red {
+  background-color: #ff5f56;
+  border: 0.5px solid rgba(0, 0, 0, 0.15);
+}
+.traffic-yellow {
+  background-color: #ffbd2e;
+  border: 0.5px solid rgba(0, 0, 0, 0.15);
+}
+.traffic-green {
+  background-color: #27c93f;
+  border: 0.5px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Subtle glowing pulse */
+@keyframes macPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+.mac-pulse-dot {
+  animation: macPulse 2.5s infinite ease-in-out;
 }

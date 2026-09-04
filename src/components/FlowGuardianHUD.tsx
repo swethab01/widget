@@ -9,39 +9,39 @@ interface FlowGuardianHUDProps {
 
 const MODE_CONFIG = {
     flow: {
-        badge: 'FLOW STATE',
+        badge: 'Flow State Active',
         icon: '🌊',
-        glow: 'border-cyan-500/40 bg-cyan-950/20 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.15)]',
-        accentBtn: 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white',
-        dot: 'bg-cyan-400 animate-ping',
+        glow: 'border-cyan-500/30 bg-cyan-950/20 text-cyan-300 shadow-[0_4px_24px_rgba(6,182,212,0.15)]',
+        accentBtn: 'bg-cyan-500 hover:bg-cyan-400 text-black font-semibold',
+        dot: 'bg-cyan-400',
     },
     drift: {
-        badge: 'ATTENTION DRIFT',
+        badge: 'Attention Drift Detected',
         icon: '⚠️',
-        glow: 'border-amber-500/50 bg-amber-950/25 text-amber-200 shadow-[0_0_18px_rgba(245,158,11,0.2)]',
-        accentBtn: 'bg-gradient-to-r from-amber-600 to-red-600 hover:from-amber-500 hover:to-red-500 text-white',
-        dot: 'bg-amber-400 animate-pulse',
+        glow: 'border-amber-500/40 bg-amber-950/25 text-amber-200 shadow-[0_4px_24px_rgba(245,158,11,0.2)]',
+        accentBtn: 'bg-amber-500 hover:bg-amber-400 text-black font-semibold',
+        dot: 'bg-amber-400',
     },
     deep: {
-        badge: 'DEEP WORK',
+        badge: 'Deep Work Momentum',
         icon: '⚡',
-        glow: 'border-emerald-500/40 bg-emerald-950/20 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]',
-        accentBtn: 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white',
+        glow: 'border-emerald-500/30 bg-emerald-950/20 text-emerald-300 shadow-[0_4px_24px_rgba(16,185,129,0.15)]',
+        accentBtn: 'bg-emerald-500 hover:bg-emerald-400 text-black font-semibold',
         dot: 'bg-emerald-400',
     },
     recovery: {
-        badge: 'RECOVERY',
+        badge: 'Recovery Mode',
         icon: '🌙',
-        glow: 'border-purple-500/40 bg-purple-950/20 text-purple-300 shadow-[0_0_15px_rgba(168,85,247,0.15)]',
-        accentBtn: 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white',
+        glow: 'border-purple-500/30 bg-purple-950/20 text-purple-300 shadow-[0_4px_24px_rgba(168,85,247,0.15)]',
+        accentBtn: 'bg-purple-500 hover:bg-purple-400 text-white font-semibold',
         dot: 'bg-purple-400',
     },
     idle: {
-        badge: 'PULSE READY',
-        icon: '🎯',
-        glow: 'border-surface-border bg-surface-card text-text-secondary',
-        accentBtn: 'bg-accent hover:bg-blue-500 text-white',
-        dot: 'bg-accent',
+        badge: 'Pulse Ready',
+        icon: '✦',
+        glow: 'border-white/[0.08] bg-white/[0.03] text-white/70',
+        accentBtn: 'bg-white/15 hover:bg-white/25 text-white font-medium',
+        dot: 'bg-blue-400',
     },
 }
 
@@ -83,15 +83,15 @@ export function FlowGuardianHUD({ onStartFocus, onAddTask, refreshTrigger }: Flo
     }
 
     return (
-        <div className={`p-3 rounded-2xl border transition-all duration-300 backdrop-blur-md ${cfg.glow}`}>
+        <div className={`relative p-3 rounded-[22px] border backdrop-blur-3xl transition-all duration-300 ${cfg.glow}`}>
+            {/* Top glass reflection */}
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
             {/* Header row */}
             <div className="flex items-center justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-2">
-                    <span className="relative flex h-2 w-2">
-                        <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${cfg.dot}`} />
-                        <span className={`relative inline-flex rounded-full h-2 w-2 ${cfg.dot}`} />
-                    </span>
-                    <span className="text-[10px] font-bold tracking-wider uppercase font-mono flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full mac-pulse-dot ${cfg.dot}`} />
+                    <span className="text-[10px] font-semibold tracking-wider uppercase font-mono flex items-center gap-1.5 text-white/90">
                         <span>{cfg.icon}</span>
                         <span>{cfg.badge}</span>
                     </span>
@@ -99,37 +99,37 @@ export function FlowGuardianHUD({ onStartFocus, onAddTask, refreshTrigger }: Flo
 
                 <div className="flex items-center gap-2">
                     {insight.streakDays > 0 && (
-                        <span className="text-[10px] font-mono font-semibold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20">
+                        <span className="text-[10px] font-mono font-medium text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/25">
                             🔥 {insight.streakDays}d streak
                         </span>
                     )}
-                    <span className="text-[10px] text-text-muted font-mono">
-                        {Math.round(insight.focusCompletionRate * 100)}% lock-in
+                    <span className="text-[10px] text-white/40 font-mono">
+                        {Math.round(insight.focusCompletionRate * 100)}% focus lock
                     </span>
                 </div>
             </div>
 
             {/* Headline & reason */}
             <div className="mb-2.5">
-                <h4 className="text-xs font-semibold text-text-primary leading-tight mb-0.5">
+                <h4 className="text-xs font-semibold text-white leading-snug mb-0.5 tracking-tight">
                     {insight.headline}
                 </h4>
-                <p className="text-[11px] text-text-secondary leading-relaxed line-clamp-2">
+                <p className="text-[11px] text-white/60 leading-relaxed line-clamp-2">
                     {insight.reason}
                 </p>
             </div>
 
             {/* Action Bar */}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06]">
                 {insight.nextTaskTitle && (
-                    <div className="flex-1 text-[10px] text-text-muted truncate">
-                        Target: <span className="text-text-secondary font-medium">{insight.nextTaskTitle}</span>
+                    <div className="flex-1 text-[10px] text-white/50 truncate">
+                        Aim: <span className="text-white/80 font-medium">{insight.nextTaskTitle}</span>
                     </div>
                 )}
 
                 <button
                     onClick={handleAction}
-                    className={`ml-auto px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${cfg.accentBtn}`}
+                    className={`ml-auto px-3 py-1.5 rounded-xl text-xs shadow-sm transition-all duration-150 active:scale-[0.97] flex items-center gap-1.5 cursor-pointer ${cfg.accentBtn}`}
                 >
                     {insight.action === 'add-task' ? (
                         <>+ Add Target Task</>

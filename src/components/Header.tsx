@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { getGreeting, formatDate } from '../utils/time'
 import type { WidgetMode } from '../types'
 
 interface HeaderProps {
@@ -9,13 +8,27 @@ interface HeaderProps {
     onModeChange: (mode: WidgetMode) => void
     onNav: (page: string) => void
     currentPage: string
+    onOpenSpotlight?: () => void
 }
 
-export function Header({ username, score, mode, onModeChange, onNav, currentPage }: HeaderProps) {
+export function Header({
+    score,
+    mode,
+    onModeChange,
+    onNav,
+    currentPage,
+    onOpenSpotlight,
+}: HeaderProps) {
     const [alwaysOnTop, setAlwaysOnTop] = useState(false)
 
-    const handleMinimize = () => window.electronAPI.window.minimize()
     const handleClose = () => window.electronAPI.window.hide()
+    const handleMinimize = () => window.electronAPI.window.minimize()
+    const handleZoom = () => {
+        // macOS Green button toggles normal / expanded cockpit
+        const next = mode === 'expanded' ? 'normal' : 'expanded'
+        onModeChange(next)
+    }
+
     const handleAlwaysOnTop = () => {
         const next = !alwaysOnTop
         setAlwaysOnTop(next)
@@ -23,79 +36,113 @@ export function Header({ username, score, mode, onModeChange, onNav, currentPage
     }
 
     const scoreColor =
-        score >= 80 ? 'text-accent-green' : score >= 60 ? 'text-yellow-400' : 'text-red-400'
+        score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-amber-400' : 'text-rose-400'
 
     return (
-        <div className="flex flex-col select-none" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>
-            {/* Title bar drag region */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                {/* Left: Logo + greeting */}
-                <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md bg-accent flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">D</span>
-                    </div>
-                    <div>
-                        <div className="text-xs font-semibold text-text-primary leading-tight">{getGreeting(username)}</div>
-                        <div className="text-[10px] text-text-muted">{formatDate()}</div>
+        <div
+            className="flex flex-col select-none border-b border-white/[0.07] bg-[#12141c]/80 backdrop-blur-3xl z-30"
+            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+        >
+            {/* macOS Titlebar */}
+            <div className="flex items-center justify-between px-3.5 pt-3 pb-2">
+                {/* Left: macOS Traffic Lights */}
+                <div
+                    className="flex items-center gap-2 mac-traffic-container"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                >
+                    <button
+                        onClick={handleClose}
+                        className="mac-traffic-light traffic-red cursor-pointer shadow-sm active:brightness-75"
+                        title="Close / Hide to Tray"
+                    >
+                        <span>✕</span>
+                    </button>
+                    <button
+                        onClick={handleMinimize}
+                        className="mac-traffic-light traffic-yellow cursor-pointer shadow-sm active:brightness-75"
+                        title="Minimize"
+                    >
+                        <span>─</span>
+                    </button>
+                    <button
+                        onClick={handleZoom}
+                        className="mac-traffic-light traffic-green cursor-pointer shadow-sm active:brightness-75"
+                        title={mode === 'expanded' ? 'Collapse to Sidebar' : 'Expand to Cockpit'}
+                    >
+                        <span>⤢</span>
+                    </button>
+
+                    {/* Window title */}
+                    <div className="ml-1.5 flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-white/90 tracking-tight">DevPulse</span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 mac-pulse-dot" title="Live Screen Tracking Active" />
                     </div>
                 </div>
 
-                {/* Right: score + controls */}
-                <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-                    <div className={`text-sm font-mono font-bold ${scoreColor}`}>
-                        {score}<span className="text-xs text-text-muted">/100</span>
-                    </div>
-
-                    {/* Mode switcher */}
-                    <div className="flex items-center bg-surface-border rounded-md overflow-hidden text-[10px]">
-                        {(['compact', 'normal', 'expanded'] as WidgetMode[]).map((m) => (
+                {/* Center: Segmented Pill (macOS style) */}
+                <div
+                    className="flex items-center mac-segmented-pill"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                >
+                    {[
+                        { id: 'dashboard', label: 'Today', icon: '✦' },
+                        { id: 'scratchpad', label: 'Notes', icon: '✎' },
+                        { id: 'analytics', label: 'Stats', icon: '☲' },
+                        { id: 'settings', label: 'Settings', icon: '⚙' },
+                    ].map((tab) => {
+                        const isActive = currentPage === tab.id
+                        return (
                             <button
-                                key={m}
-                                onClick={() => onModeChange(m)}
-                                className={`px-1.5 py-0.5 transition-colors ${mode === m ? 'bg-accent text-white' : 'text-text-muted hover:text-text-secondary'}`}
+                                key={tab.id}
+                                onClick={() => onNav(tab.id)}
+                                className={`px-2.5 py-1 text-[11px] font-medium mac-segment-item flex items-center gap-1 cursor-pointer ${
+                                    isActive
+                                        ? 'mac-segment-active'
+                                        : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
+                                }`}
                             >
-                                {m[0].toUpperCase()}
+                                <span className="text-[10px] opacity-70">{tab.icon}</span>
+                                <span>{tab.label}</span>
                             </button>
-                        ))}
-                    </div>
+                        )
+                    })}
+                </div>
 
-                    {/* Pin */}
+                {/* Right: Spotlight + Pin + Score */}
+                <div
+                    className="flex items-center gap-2"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                >
+                    {/* Spotlight search button */}
+                    <button
+                        onClick={onOpenSpotlight}
+                        className="flex items-center gap-1 px-2 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-white/70 hover:text-white text-[10px] transition-all cursor-pointer font-mono"
+                        title="Open Spotlight Launcher (⌘K)"
+                    >
+                        <span>⌘K</span>
+                    </button>
+
+                    {/* Pin button */}
                     <button
                         onClick={handleAlwaysOnTop}
-                        className={`text-xs transition-colors ${alwaysOnTop ? 'text-accent' : 'text-text-muted hover:text-text-secondary'}`}
-                        title="Always on top"
+                        className={`p-1 rounded-full text-xs transition-colors cursor-pointer ${
+                            alwaysOnTop
+                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                : 'text-white/40 hover:text-white/80 hover:bg-white/[0.06]'
+                        }`}
+                        title={alwaysOnTop ? 'Pinned On Top' : 'Pin Always On Top'}
                     >
                         📌
                     </button>
 
-                    {/* Window controls */}
-                    <button onClick={handleMinimize} className="text-text-muted hover:text-text-secondary text-xs">─</button>
-                    <button onClick={handleClose} className="text-text-muted hover:text-red-400 text-xs">✕</button>
+                    {/* Score Badge */}
+                    <div className="flex items-center gap-1 pl-1.5 border-l border-white/10">
+                        <span className={`text-xs font-mono font-bold ${scoreColor}`}>
+                            {score}
+                        </span>
+                        <span className="text-[10px] text-white/40 font-mono">pts</span>
+                    </div>
                 </div>
-            </div>
-
-            {/* Navigation tabs */}
-            <div
-                className="flex items-center gap-1 px-3 pb-1 border-b border-surface-border"
-                style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            >
-                {[
-                    { id: 'dashboard', label: '🏠 Today' },
-                    { id: 'scratchpad', label: '📝 Notes' },
-                    { id: 'analytics', label: '📊 Stats' },
-                    { id: 'settings', label: '⚙️ Settings' },
-                ].map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => onNav(tab.id)}
-                        className={`px-2 py-1 text-[11px] rounded-md transition-colors ${currentPage === tab.id
-                                ? 'bg-accent/20 text-accent'
-                                : 'text-text-muted hover:text-text-secondary hover:bg-surface-hover'
-                            }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
             </div>
         </div>
     )

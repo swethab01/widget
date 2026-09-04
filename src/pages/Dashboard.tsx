@@ -81,6 +81,7 @@ export function Dashboard({ onTriggerAddTask, mode = 'normal' }: DashboardProps)
                             onDelete={tasks.deleteTask}
                             onUpdate={tasks.updateTask}
                             showQuickAdd={onTriggerAddTask}
+                            onFocusTask={(taskId, minutes) => focus.start(taskId, minutes)}
                         />
                         <FocusWidget
                             focusState={focus.focusState}
@@ -128,6 +129,7 @@ export function Dashboard({ onTriggerAddTask, mode = 'normal' }: DashboardProps)
                         onDelete={tasks.deleteTask}
                         onUpdate={tasks.updateTask}
                         showQuickAdd={onTriggerAddTask}
+                        onFocusTask={(taskId, minutes) => focus.start(taskId, minutes)}
                     />
 
                     {/* Focus + Screen Time row */}
