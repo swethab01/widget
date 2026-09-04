@@ -5,11 +5,13 @@ import { Analytics } from './pages/Analytics'
 import { SettingsPage } from './pages/Settings'
 import { Scratchpad } from './pages/Scratchpad'
 import { CommandPalette } from './components/CommandPalette'
-import type { Task, WidgetMode } from './types'
+import { MacDesktopCanvas } from './components/desktop/MacDesktopCanvas'
+import type { Task, WidgetMode, DesktopWallpaper } from './types'
 
 export default function App() {
   const [page, setPage] = useState('dashboard')
   const [mode, setMode] = useState<WidgetMode>('normal')
+  const [wallpaper, setWallpaper] = useState<DesktopWallpaper>('spiderman')
   const [username, setUsername] = useState('Developer')
   const [score, setScore] = useState(0)
   const [tasks, setTasks] = useState<Task[]>([])
@@ -74,6 +76,40 @@ export default function App() {
 
   const handleStartFocusFromPalette = (taskId: number | null, minutes: number) => {
     window.electronAPI.focus.start(taskId, minutes)
+  }
+
+  // In canvas mode, show the full macOS Desktop Canvas experience
+  if (mode === 'canvas') {
+    return (
+      <div className="h-screen w-screen overflow-hidden">
+        <MacDesktopCanvas
+          currentWallpaper={wallpaper}
+          onSelectWallpaper={setWallpaper}
+          currentMode={mode}
+          onModeChange={handleModeChange}
+          currentPage={page}
+          onNav={setPage}
+          onOpenSpotlight={() => setIsSpotlightOpen(true)}
+          onStartFocus={handleStartFocusFromPalette}
+        />
+
+        {/* macOS Spotlight Command Palette Modal */}
+        <CommandPalette
+          isOpen={isSpotlightOpen}
+          onClose={() => setIsSpotlightOpen(false)}
+          tasks={tasks}
+          onNav={(p) => {
+            setPage(p)
+            setIsSpotlightOpen(false)
+          }}
+          onModeChange={(m) => {
+            handleModeChange(m)
+            setIsSpotlightOpen(false)
+          }}
+          onStartFocus={handleStartFocusFromPalette}
+        />
+      </div>
+    )
   }
 
   // In compact mode, show macOS 2x2 Small Widget

@@ -15,9 +15,10 @@ const CATEGORY_COLORS: Record<string, { bar: string; text: string; dot: string }
 interface ScreenTimeWidgetProps {
     summary: ScreenTimeSummary
     loading: boolean
+    className?: string
 }
 
-export function ScreenTimeWidget({ summary, loading }: ScreenTimeWidgetProps) {
+export function ScreenTimeWidget({ summary, loading, className = '' }: ScreenTimeWidgetProps) {
     if (loading) {
         return (
             <Card className="animate-pulse">
@@ -34,7 +35,7 @@ export function ScreenTimeWidget({ summary, loading }: ScreenTimeWidgetProps) {
     const otherPct = Math.max(0, 100 - codingPct - entertainPct - commPct)
 
     return (
-        <Card className="relative overflow-hidden">
+        <Card className={`relative overflow-hidden ${className}`}>
             {/* macOS Screen Time Header */}
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-white/90 tracking-tight uppercase">

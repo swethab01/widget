@@ -54,6 +54,7 @@ export function CommandPalette({
         { id: 'focus-90', category: 'Focus Mode', title: 'Start 90m Flow State Block', subtitle: 'Ultra-focus architecture sprint', icon: '🌊', action: () => onStartFocus(null, 90) },
 
         // Window Mode
+        { id: 'mode-canvas', category: 'macOS Layout', title: 'Switch to Full Desktop Canvas', subtitle: 'Authentic macOS wallpaper & desktop widgets (1260×840)', icon: '🖥️', action: () => onModeChange('canvas') },
         { id: 'mode-expanded', category: 'macOS Layout', title: 'Switch to Expanded Cockpit', subtitle: 'Dual-pane desktop workspace (960×720)', icon: '🪟', action: () => onModeChange('expanded') },
         { id: 'mode-normal', category: 'macOS Layout', title: 'Switch to Sidebar Widget', subtitle: 'Compact vertical bar (440×700)', icon: '📱', action: () => onModeChange('normal') },
         { id: 'mode-compact', category: 'macOS Layout', title: 'Switch to 2×2 Floating Tile', subtitle: 'Minimalist desktop ring tile (340×240)', icon: '✨', action: () => onModeChange('compact') },

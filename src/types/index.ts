@@ -2,7 +2,8 @@
 
 export type Priority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'todo' | 'done'
-export type WidgetMode = 'compact' | 'normal' | 'expanded'
+export type WidgetMode = 'compact' | 'normal' | 'expanded' | 'canvas'
+export type DesktopWallpaper = 'spiderman' | 'mountains' | 'forest' | 'cyber'
 
 export interface Task {
     id: number

@@ -152,3 +152,54 @@
 .mac-pulse-dot {
   animation: macPulse 2.5s infinite ease-in-out;
 }
+
+/* Vinyl Record Spin */
+@keyframes vinylSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-vinyl-spin {
+  animation: vinylSpin 7s linear infinite;
+}
+
+.animate-vinyl-paused {
+  animation-play-state: paused;
+}
+
+/* macOS Floating Dock */
+.mac-dock-container {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(35px) saturate(200%);
+  -webkit-backdrop-filter: blur(35px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border-radius: 26px;
+}
+
+.mac-dock-item {
+  transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+.mac-dock-item:hover {
+  transform: scale(1.32) translateY(-8px);
+}
+
+/* Retro Split-Flap Clock Styling */
+.flip-number {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.flip-divider {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}

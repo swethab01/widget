@@ -108,11 +108,25 @@ export function Header({
                     })}
                 </div>
 
-                {/* Right: Spotlight + Pin + Score */}
+                {/* Right: Mode + Spotlight + Pin + Score */}
                 <div
                     className="flex items-center gap-2"
                     style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                 >
+                    {/* Desktop Canvas Mode Toggle */}
+                    <button
+                        onClick={() => onModeChange(mode === 'canvas' ? 'normal' : 'canvas')}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all cursor-pointer ${
+                            mode === 'canvas'
+                                ? 'bg-blue-500/25 text-blue-300 border-blue-500/40 shadow-sm'
+                                : 'bg-white/[0.06] text-white/60 border-white/[0.08] hover:text-white hover:bg-white/10'
+                        }`}
+                        title="Toggle Full macOS Desktop Canvas Mode"
+                    >
+                        <span>🖥️</span>
+                        <span className="hidden sm:inline">Desktop</span>
+                    </button>
+
                     {/* Spotlight search button */}
                     <button
                         onClick={onOpenSpotlight}

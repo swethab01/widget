@@ -21,6 +21,7 @@ const WINDOW_SIZES = {
     compact: { width: 340, height: 240 },
     normal: { width: 440, height: 700 },
     expanded: { width: 960, height: 720 },
+    canvas: { width: 1260, height: 840 },
 }
 
 function createWindow() {
@@ -145,6 +146,9 @@ ipcMain.on('window:close', () => mainWindow?.hide())
 ipcMain.on('window:setMode', (_e, mode: keyof typeof WINDOW_SIZES) => {
     const size = WINDOW_SIZES[mode] || WINDOW_SIZES.normal
     mainWindow?.setSize(size.width, size.height, true)
+    if (mode === 'canvas') {
+        mainWindow?.center()
+    }
 })
 ipcMain.on('window:setAlwaysOnTop', (_e, flag: boolean) => {
     mainWindow?.setAlwaysOnTop(flag)
@@ -153,6 +157,7 @@ ipcMain.handle('window:getMode', () => {
     if (!mainWindow) return 'normal'
     const [w] = mainWindow.getSize()
     if (w <= 360) return 'compact'
+    if (w >= 1100) return 'canvas'
     if (w >= 800) return 'expanded'
     return 'normal'
 })
@@ -219,8 +224,9 @@ function applySettingKey(key: string, value: string) {
     if (key === 'startWithWindows') {
         app.setLoginItemSettings({ openAtLogin: value === 'true' })
     }
-    if (key === 'widgetMode' && (value === 'compact' || value === 'normal' || value === 'expanded')) {
-        const size = WINDOW_SIZES[value]
+    if (key === 'widgetMode' && (value === 'compact' || value === 'normal' || value === 'expanded' || value === 'canvas')) {
+        const size = WINDOW_SIZES[value as keyof typeof WINDOW_SIZES]
         mainWindow?.setSize(size.width, size.height, true)
+        if (value === 'canvas') mainWindow?.center()
     }
 }
