@@ -56,6 +56,23 @@ const electronAPI = {
             ipcRenderer.invoke('settings:set', key, value),
     },
 
+    // Pulse insight
+    pulse: {
+        getInsight: () => ipcRenderer.invoke('pulse:insight'),
+    },
+
+    // Git intelligence
+    git: {
+        getRepoInfo: (customPath?: string) =>
+            ipcRenderer.invoke('git:getRepoInfo', customPath),
+    },
+
+    // Scratchpad
+    scratchpad: {
+        get: () => ipcRenderer.invoke('scratchpad:get'),
+        save: (content: string) => ipcRenderer.invoke('scratchpad:save', content),
+    },
+
     // Goals
     goals: {
         getAll: () => ipcRenderer.invoke('goals:getAll'),
@@ -73,7 +90,9 @@ const electronAPI = {
     ) => {
         const validChannels = [
             'focus:tick',
+            'focus:complete',
             'screenTime:update',
+            'pulse:refresh',
             'tray:startFocus',
             'tray:addTask',
             'tray:settings',

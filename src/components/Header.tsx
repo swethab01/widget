@@ -81,6 +81,7 @@ export function Header({ username, score, mode, onModeChange, onNav, currentPage
             >
                 {[
                     { id: 'dashboard', label: '🏠 Today' },
+                    { id: 'scratchpad', label: '📝 Notes' },
                     { id: 'analytics', label: '📊 Stats' },
                     { id: 'settings', label: '⚙️ Settings' },
                 ].map((tab) => (

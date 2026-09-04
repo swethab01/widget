@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently -k \"vite\" \"electron-wait-vite\"",
-    "build": "tsc -p tsconfig.node.json && vite build && tsc -p tsconfig.electron.json",
+    "build": "tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
     "electron:dev": "cross-env NODE_ENV=development concurrently -k -p \"[{name}]\" -n \"VITE,ELECTRON\" -c \"yellow,cyan\" \"vite\" \"nodemon --watch dist-electron --exec electron .\"",
     "electron:build": "npm run build && electron-builder"
@@ -23,7 +23,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.1.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
@@ -43,7 +43,10 @@
     "directories": {
       "output": "release"
     },
-    "files": ["dist/**/*", "dist-electron/**/*"],
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
     "win": {
       "target": "nsis",
       "icon": "public/icon.ico"

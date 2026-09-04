@@ -101,6 +101,49 @@ export interface Settings {
     [key: string]: string
 }
 
+export type PulseMode = 'idle' | 'flow' | 'drift' | 'deep' | 'recovery'
+export type PulseAction =
+    | 'start-focus'
+    | 'keep-going'
+    | 'take-break'
+    | 'switch-task'
+    | 'add-task'
+    | 'protect-flow'
+
+export interface PulseInsight {
+    mode: PulseMode
+    headline: string
+    reason: string
+    action: PulseAction
+    suggestedMinutes: number
+    nextTaskId: number | null
+    nextTaskTitle: string | null
+    streakDays: number
+    focusCompletionRate: number
+    entertainmentOverLimit: boolean
+}
+
+export interface GitCommit {
+    hash: string
+    author: string
+    message: string
+    time: string
+}
+
+export interface GitRepoInfo {
+    repoName: string
+    repoPath: string
+    branch: string
+    todayCommitCount: number
+    commits: GitCommit[]
+    isGitRepo: boolean
+}
+
+export interface ScratchpadData {
+    content: string
+    updated_at: string
+}
+
 // Electron API typings (matches preload.ts)
 export interface ElectronAPI {
     window: {
@@ -131,6 +174,16 @@ export interface ElectronAPI {
         getToday: () => Promise<ScreenTimeSummary>
         getSummary: () => Promise<{ date: string; totalSeconds: number; codingSeconds: number }[]>
     }
+    pulse: {
+        getInsight: () => Promise<PulseInsight>
+    }
+    git: {
+        getRepoInfo: (customPath?: string) => Promise<GitRepoInfo>
+    }
+    scratchpad: {
+        get: () => Promise<ScratchpadData>
+        save: (content: string) => Promise<{ success: boolean }>
+    }
     score: {
         getToday: () => Promise<DailyScore>
         getHistory: (days: number) => Promise<DailyScore[]>
@@ -154,3 +207,4 @@ declare global {
         electronAPI: ElectronAPI
     }
 }
+

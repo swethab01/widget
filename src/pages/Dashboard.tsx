@@ -5,10 +5,12 @@ import { ScreenTimeWidget } from '../components/ScreenTimeWidget'
 import { ProductivityScore } from '../components/ProductivityScore'
 import { DeveloperGoals } from '../components/DeveloperGoals'
 import { QuickCapture } from '../components/QuickCapture'
+import { FlowGuardianHUD } from '../components/FlowGuardianHUD'
+import { GitPulseCard } from '../components/GitPulseCard'
 import { useTasks } from '../hooks/useTasks'
 import { useFocus } from '../hooks/useFocus'
 import { useScreenTime } from '../hooks/useScreenTime'
-import type { DailyScore } from '../types'
+import type { DailyScore, WidgetMode } from '../types'
 
 const EMPTY_SCORE: DailyScore = {
     date: '',
@@ -21,100 +23,146 @@ const EMPTY_SCORE: DailyScore = {
 
 interface DashboardProps {
     onTriggerAddTask?: boolean
+    mode?: WidgetMode
 }
 
-export function Dashboard({ onTriggerAddTask }: DashboardProps) {
+export function Dashboard({ onTriggerAddTask, mode = 'normal' }: DashboardProps) {
     const tasks = useTasks()
     const focus = useFocus()
     const screenTime = useScreenTime()
     const [score, setScore] = useState<DailyScore>(EMPTY_SCORE)
+    const [pulseRefreshTrigger, setPulseRefreshTrigger] = useState(0)
 
     useEffect(() => {
         window.electronAPI.score.getToday().then((s) => {
             if (s) setScore(s)
         })
-        // Refresh score every 2 minutes
         const id = setInterval(() => {
-            window.electronAPI.score.getToday().then((s) => { if (s) setScore(s) })
-        }, 120000)
+            window.electronAPI.score.getToday().then((s) => {
+                if (s) setScore(s)
+            })
+        }, 60000)
         return () => clearInterval(id)
     }, [])
 
-    // Refresh score when a task is toggled
+    // Refresh score and pulse when a task is toggled
     const handleToggle = async (id: number) => {
         await tasks.toggleTask(id)
         const s = await window.electronAPI.score.getToday()
         if (s) setScore(s)
+        setPulseRefreshTrigger((prev) => prev + 1)
     }
 
-    // Smart recommendation
-    const getRecommendation = () => {
-        const highPriorityTodo = tasks.todoTasks.find((t) => t.priority === 'high')
-        if (highPriorityTodo) {
-            return `💡 Start with "${highPriorityTodo.title}" — it's high priority and due${highPriorityTodo.due_time ? ` at ${highPriorityTodo.due_time}` : ' today'} (est. ${highPriorityTodo.est_minutes}min)`
-        }
-        if (tasks.todoTasks.length > 0) {
-            const next = tasks.todoTasks[0]
-            return `✨ Next up: "${next.title}" (est. ${next.est_minutes}min)`
-        }
-        if (tasks.tasks.length > 0 && tasks.completionRate === 100) {
-            return '🎉 All tasks complete! Great work today.'
-        }
-        return '💡 Add tasks to get smart recommendations.'
+    const handleStartFocusFromHUD = (taskId: number | null, minutes: number) => {
+        focus.start(taskId, minutes)
     }
+
+    const isExpanded = mode === 'expanded'
 
     return (
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide animate-fade-in">
-            {/* Quick capture */}
-            <QuickCapture onAdd={tasks.addTask} />
+        <div className="flex-1 h-full overflow-y-auto p-3 scrollbar-hide animate-fade-in">
+            {isExpanded ? (
+                /* Dual-Pane Cockpit Layout for Expanded Mode (960px width) */
+                <div className="grid grid-cols-12 gap-3 max-w-7xl mx-auto">
+                    {/* Left Cockpit Column */}
+                    <div className="col-span-6 space-y-3">
+                        <FlowGuardianHUD
+                            onStartFocus={handleStartFocusFromHUD}
+                            onAddTask={() => {}}
+                            refreshTrigger={pulseRefreshTrigger}
+                        />
+                        <QuickCapture onAdd={tasks.addTask} />
+                        <TaskWidget
+                            tasks={tasks.tasks}
+                            doneTasks={tasks.doneTasks}
+                            completionRate={tasks.completionRate}
+                            onAdd={tasks.addTask}
+                            onToggle={handleToggle}
+                            onDelete={tasks.deleteTask}
+                            onUpdate={tasks.updateTask}
+                            showQuickAdd={onTriggerAddTask}
+                        />
+                        <FocusWidget
+                            focusState={focus.focusState}
+                            sessions={focus.sessions}
+                            isComplete={focus.isComplete}
+                            progress={focus.progress}
+                            onStart={focus.start}
+                            onPause={focus.pause}
+                            onResume={focus.resume}
+                            onStop={focus.stop}
+                        />
+                    </div>
 
-            {/* Smart recommendation */}
-            {tasks.tasks.length > 0 && (
-                <div className="px-3 py-2 bg-accent/10 border border-accent/20 rounded-xl">
-                    <p className="text-[11px] text-text-secondary leading-relaxed">{getRecommendation()}</p>
+                    {/* Right Cockpit Column */}
+                    <div className="col-span-6 space-y-3">
+                        <ProductivityScore score={score} />
+                        <GitPulseCard />
+                        <ScreenTimeWidget
+                            summary={screenTime.summary}
+                            loading={screenTime.loading}
+                        />
+                        <DeveloperGoals />
+                    </div>
+                </div>
+            ) : (
+                /* Sleek Single Column Layout for Normal Mode (440px width) */
+                <div className="space-y-3 max-w-md mx-auto">
+                    {/* Real-time Flow Guardian HUD */}
+                    <FlowGuardianHUD
+                        onStartFocus={handleStartFocusFromHUD}
+                        onAddTask={() => {}}
+                        refreshTrigger={pulseRefreshTrigger}
+                    />
+
+                    {/* Quick capture */}
+                    <QuickCapture onAdd={tasks.addTask} />
+
+                    {/* Tasks */}
+                    <TaskWidget
+                        tasks={tasks.tasks}
+                        doneTasks={tasks.doneTasks}
+                        completionRate={tasks.completionRate}
+                        onAdd={tasks.addTask}
+                        onToggle={handleToggle}
+                        onDelete={tasks.deleteTask}
+                        onUpdate={tasks.updateTask}
+                        showQuickAdd={onTriggerAddTask}
+                    />
+
+                    {/* Focus + Screen Time row */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <FocusWidget
+                            focusState={focus.focusState}
+                            sessions={focus.sessions}
+                            isComplete={focus.isComplete}
+                            progress={focus.progress}
+                            onStart={focus.start}
+                            onPause={focus.pause}
+                            onResume={focus.resume}
+                            onStop={focus.stop}
+                        />
+                        <ScreenTimeWidget
+                            summary={screenTime.summary}
+                            loading={screenTime.loading}
+                        />
+                    </div>
+
+                    {/* Git Pulse */}
+                    <GitPulseCard />
+
+                    {/* Productivity Score */}
+                    <ProductivityScore score={score} />
+
+                    {/* Developer Goals */}
+                    <DeveloperGoals />
+
+                    {/* Footer */}
+                    <div className="text-center pb-1">
+                        <span className="text-[9px] text-text-muted font-mono">DevPulse • Deep Work Cockpit</span>
+                    </div>
                 </div>
             )}
-
-            {/* Tasks */}
-            <TaskWidget
-                tasks={tasks.tasks}
-                doneTasks={tasks.doneTasks}
-                completionRate={tasks.completionRate}
-                onAdd={tasks.addTask}
-                onToggle={handleToggle}
-                onDelete={tasks.deleteTask}
-                onUpdate={tasks.updateTask}
-                showQuickAdd={onTriggerAddTask}
-            />
-
-            {/* Focus + Screen Time row */}
-            <div className="grid grid-cols-2 gap-3">
-                <FocusWidget
-                    focusState={focus.focusState}
-                    sessions={focus.sessions}
-                    isComplete={focus.isComplete}
-                    progress={focus.progress}
-                    onStart={focus.start}
-                    onPause={focus.pause}
-                    onResume={focus.resume}
-                    onStop={focus.stop}
-                />
-                <ScreenTimeWidget
-                    summary={screenTime.summary}
-                    loading={screenTime.loading}
-                />
-            </div>
-
-            {/* Productivity Score */}
-            <ProductivityScore score={score} />
-
-            {/* Developer Goals */}
-            <DeveloperGoals />
-
-            {/* DevPulse branding footer */}
-            <div className="text-center pb-1">
-                <span className="text-[9px] text-text-muted">DevPulse • Your coding. Your day.</span>
-            </div>
         </div>
     )
 }

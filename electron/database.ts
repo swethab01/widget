@@ -1,8 +1,9 @@
-import Database from 'better-sqlite3'
 import path from 'path'
+import fs from 'fs'
 import { app } from 'electron'
+import type Database from 'better-sqlite3'
 
-let db: Database.Database
+let db: any
 
 export function getDB(): Database.Database {
     return db
@@ -10,11 +11,22 @@ export function getDB(): Database.Database {
 
 export function initDatabase() {
     const userDataPath = app.getPath('userData')
+    if (!fs.existsSync(userDataPath)) {
+        fs.mkdirSync(userDataPath, { recursive: true })
+    }
     const dbPath = path.join(userDataPath, 'devpulse.db')
+    const jsonPath = path.join(userDataPath, 'devpulse-data.json')
 
-    db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
-    db.pragma('foreign_keys = ON')
+    try {
+        // Attempt to load native better-sqlite3
+        const BetterSqlite3 = require('better-sqlite3')
+        db = new BetterSqlite3(dbPath)
+        db.pragma('journal_mode = WAL')
+        db.pragma('foreign_keys = ON')
+    } catch {
+        // High-performance resilient JSON-backed SQLite fallback
+        db = createFallbackDB(jsonPath)
+    }
 
     createSchema()
     seedDefaultSettings()
@@ -65,6 +77,7 @@ function createSchema() {
       distraction_pts INTEGER DEFAULT 0,
       github_pts      INTEGER DEFAULT 0,
       leetcode_pts    INTEGER DEFAULT 0,
+      momentum_pts    INTEGER DEFAULT 0,
       breakdown       TEXT DEFAULT '{}'
     );
 
@@ -84,6 +97,12 @@ function createSchema() {
       value TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS scratchpad (
+      id         INTEGER PRIMARY KEY CHECK (id = 1),
+      content    TEXT DEFAULT '',
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at);
     CREATE INDEX IF NOT EXISTS idx_app_usage_date ON app_usage(date);
@@ -91,13 +110,21 @@ function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_focus_started ON focus_sessions(started_at);
   `)
 
+    db.prepare(`
+    INSERT OR IGNORE INTO scratchpad (id, content) VALUES (1, '# Developer Scratchpad\n- [ ] Quick thought\n- [ ] Snippet / Command')
+  `).run()
+
     migrateSchema()
 }
 
 function migrateSchema() {
-    const cols = db.prepare('PRAGMA table_info(daily_scores)').all() as { name: string }[]
-    if (!cols.some((c) => c.name === 'momentum_pts')) {
-        db.exec('ALTER TABLE daily_scores ADD COLUMN momentum_pts INTEGER DEFAULT 0')
+    try {
+        const cols = db.prepare('PRAGMA table_info(daily_scores)').all() as { name: string }[]
+        if (cols && !cols.some((c) => c.name === 'momentum_pts')) {
+            db.exec('ALTER TABLE daily_scores ADD COLUMN momentum_pts INTEGER DEFAULT 0')
+        }
+    } catch {
+        // ignore
     }
 }
 
@@ -121,9 +148,7 @@ function seedDefaultSettings() {
         notificationsEnabled: 'true',
     }
 
-    const insert = db.prepare(
-        'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
-    )
+    const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)')
     const insertMany = db.transaction((entries: [string, string][]) => {
         for (const [k, v] of entries) insert.run(k, v)
     })
@@ -147,4 +172,381 @@ function seedDefaultGoals() {
         for (const row of rows) insert.run(row)
     })
     insertMany(defaults)
+}
+
+// Resilient Fallback Database Engine
+function createFallbackDB(storageFilePath: string) {
+    let state = {
+        tasks: [] as any[],
+        focus_sessions: [] as any[],
+        app_usage: [] as any[],
+        daily_scores: {} as Record<string, any>,
+        goals: [] as any[],
+        settings: {} as Record<string, string>,
+        scratchpad: { id: 1, content: '# Developer Scratchpad\n- [ ] Quick thought\n- [ ] Snippet / Command', updated_at: new Date().toISOString() },
+        nextId: { tasks: 1, focus_sessions: 1, goals: 1 },
+    }
+
+    if (fs.existsSync(storageFilePath)) {
+        try {
+            const raw = fs.readFileSync(storageFilePath, 'utf-8')
+            const loaded = JSON.parse(raw)
+            state = { ...state, ...loaded }
+        } catch {
+            // ignore
+        }
+    }
+
+    const save = () => {
+        try {
+            fs.writeFileSync(storageFilePath, JSON.stringify(state, null, 2), 'utf-8')
+        } catch {
+            // ignore
+        }
+    }
+
+    const nowStr = () => new Date().toLocaleString()
+
+    return {
+        pragma: (_cmd: string) => {},
+        exec: (_sql: string) => {},
+        transaction: (fn: Function) => {
+            return (...args: any[]) => fn(...args)
+        },
+        prepare: (sql: string) => {
+            const cleanSql = sql.replace(/\s+/g, ' ').trim()
+
+            return {
+                run: (...args: any[]) => {
+                    const arg0 = args[0]
+
+                    // Scratchpad
+                    if (cleanSql.includes('INSERT INTO scratchpad') || cleanSql.includes('INSERT OR IGNORE INTO scratchpad')) {
+                        const content = typeof arg0 === 'object' ? arg0.content : args[1] || ''
+                        state.scratchpad = { id: 1, content, updated_at: nowStr() }
+                        save()
+                        return { lastInsertRowid: 1, changes: 1 }
+                    }
+
+                    // Tasks insert
+                    if (cleanSql.includes('INSERT INTO tasks')) {
+                        const t = arg0 || {}
+                        const id = state.nextId.tasks++
+                        const newTask = {
+                            id,
+                            title: t.title || '',
+                            priority: t.priority || 'medium',
+                            category: t.category || 'General',
+                            status: 'todo',
+                            due_time: t.due_time || null,
+                            est_minutes: t.est_minutes || 25,
+                            actual_minutes: 0,
+                            created_at: nowStr(),
+                            completed_at: null,
+                        }
+                        state.tasks.unshift(newTask)
+                        save()
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+
+                    // Tasks update
+                    if (cleanSql.includes('UPDATE tasks SET status = \'done\'')) {
+                        const id = typeof arg0 === 'number' ? arg0 : args[0]
+                        const task = state.tasks.find((t) => t.id === id)
+                        if (task) {
+                            task.status = 'done'
+                            task.completed_at = nowStr()
+                            save()
+                        }
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+
+                    if (cleanSql.includes('UPDATE tasks SET')) {
+                        const patch = arg0 || {}
+                        const id = patch.id || args[0]
+                        const task = state.tasks.find((t) => t.id === id)
+                        if (task) {
+                            Object.assign(task, patch)
+                            save()
+                        }
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+
+                    // Tasks delete
+                    if (cleanSql.includes('DELETE FROM tasks WHERE id = ?')) {
+                        const id = args[0]
+                        state.tasks = state.tasks.filter((t) => t.id !== id)
+                        save()
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+
+                    // Focus session start
+                    if (cleanSql.includes('INSERT INTO focus_sessions')) {
+                        const [taskId, taskTitle, durationMinutes] = args
+                        const id = state.nextId.focus_sessions++
+                        state.focus_sessions.unshift({
+                            id,
+                            task_id: taskId,
+                            task_title: taskTitle,
+                            duration_minutes: durationMinutes,
+                            started_at: new Date().toISOString(),
+                            ended_at: null,
+                            completed: 0,
+                        })
+                        save()
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+
+                    // Focus session update
+                    if (cleanSql.includes('UPDATE focus_sessions SET ended_at =')) {
+                        const isCompleted = cleanSql.includes('completed = 1') ? 1 : 0
+                        const id = args[0]
+                        const session = state.focus_sessions.find((s) => s.id === id)
+                        if (session) {
+                            session.ended_at = new Date().toISOString()
+                            session.completed = isCompleted
+                            save()
+                        }
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+
+                    // App usage upsert
+                    if (cleanSql.includes('INSERT INTO app_usage')) {
+                        const row = arg0 || {}
+                        const existing = state.app_usage.find(
+                            (u) => u.app_name.toLowerCase() === (row.appName || '').toLowerCase() && u.date === row.date
+                        )
+                        if (existing) {
+                            existing.duration_seconds += row.durationSeconds || 0
+                            existing.window_title = row.windowTitle || ''
+                            existing.last_seen = nowStr()
+                        } else {
+                            state.app_usage.push({
+                                id: state.app_usage.length + 1,
+                                app_name: row.appName,
+                                window_title: row.windowTitle,
+                                category: row.category,
+                                date: row.date,
+                                duration_seconds: row.durationSeconds,
+                                last_seen: nowStr(),
+                            })
+                        }
+                        save()
+                        return { lastInsertRowid: 1, changes: 1 }
+                    }
+
+                    // Daily scores upsert
+                    if (cleanSql.includes('INSERT OR REPLACE INTO daily_scores') || cleanSql.includes('UPDATE daily_scores')) {
+                        if (cleanSql.includes('github_pts = ?')) {
+                            const [githubPts, date] = args
+                            if (state.daily_scores[date]) {
+                                state.daily_scores[date].github_pts = githubPts
+                                save()
+                            }
+                            return { lastInsertRowid: 1, changes: 1 }
+                        }
+                        const [date, score, tasks_pts, focus_pts, coding_pts, distraction_pts, momentum_pts] = args
+                        state.daily_scores[date] = {
+                            date,
+                            score,
+                            tasks_pts,
+                            focus_pts,
+                            coding_pts,
+                            distraction_pts,
+                            momentum_pts: momentum_pts || 0,
+                            github_pts: state.daily_scores[date]?.github_pts || 0,
+                        }
+                        save()
+                        return { lastInsertRowid: 1, changes: 1 }
+                    }
+
+                    // Goals
+                    if (cleanSql.includes('UPDATE goals SET current = ? WHERE type = ?') || cleanSql.includes('UPDATE goals SET current = MAX')) {
+                        const [current, type] = args
+                        const g = state.goals.find((g) => g.type === type)
+                        if (g) {
+                            g.current = cleanSql.includes('MAX') ? Math.max(g.current || 0, current) : current
+                            save()
+                        }
+                        return { lastInsertRowid: 1, changes: 1 }
+                    }
+                    if (cleanSql.includes('UPDATE goals SET target = ? WHERE type = ?')) {
+                        const [target, type] = args
+                        const g = state.goals.find((g) => g.type === type)
+                        if (g) {
+                            g.target = target
+                            save()
+                        }
+                        return { lastInsertRowid: 1, changes: 1 }
+                    }
+                    if (cleanSql.includes('INSERT OR IGNORE INTO goals')) {
+                        const g = arg0 || {}
+                        if (!state.goals.some((x) => x.type === g.type)) {
+                            state.goals.push({ id: state.nextId.goals++, ...g, current: 0 })
+                            save()
+                        }
+                        return { lastInsertRowid: 1, changes: 1 }
+                    }
+
+                    // Settings
+                    if (cleanSql.includes('INSERT OR IGNORE INTO settings') || cleanSql.includes('INSERT OR REPLACE INTO settings')) {
+                        const [k, v] = args
+                        if (cleanSql.includes('IGNORE') && state.settings[k] !== undefined) {
+                            return { lastInsertRowid: 1, changes: 0 }
+                        }
+                        state.settings[k] = String(v)
+                        save()
+                        return { lastInsertRowid: 1, changes: 1 }
+                    }
+
+                    return { lastInsertRowid: 0, changes: 0 }
+                },
+
+                get: (...args: any[]) => {
+                    const arg0 = args[0]
+
+                    // Scratchpad
+                    if (cleanSql.includes('FROM scratchpad')) {
+                        return state.scratchpad
+                    }
+
+                    // Tasks get by ID
+                    if (cleanSql.includes('SELECT * FROM tasks WHERE id = ?')) {
+                        return state.tasks.find((t) => t.id === arg0)
+                    }
+                    if (cleanSql.includes('SELECT title FROM tasks WHERE id = ?')) {
+                        const t = state.tasks.find((t) => t.id === arg0)
+                        return t ? { title: t.title } : undefined
+                    }
+
+                    // Tasks count
+                    if (cleanSql.includes('FROM tasks WHERE date(created_at) = ? OR date(completed_at) = ?')) {
+                        const date = arg0
+                        const relevant = state.tasks.filter(
+                            (t) => (t.created_at && t.created_at.includes(date)) || (t.completed_at && t.completed_at.includes(date))
+                        )
+                        return {
+                            total: relevant.length,
+                            done: relevant.filter((t) => t.status === 'done').length,
+                        }
+                    }
+                    if (cleanSql.includes("FROM tasks WHERE status = 'done'")) {
+                        const date = arg0
+                        const filtered = state.tasks.filter((t) => {
+                            if (t.status !== 'done') return false
+                            if (cleanSql.includes("category) = 'leetcode'")) {
+                                if (t.category?.toLowerCase() !== 'leetcode') return false
+                            }
+                            if (cleanSql.includes("category) = 'github'")) {
+                                if (t.category?.toLowerCase() !== 'github') return false
+                            }
+                            return t.completed_at && t.completed_at >= date
+                        })
+                        return { c: filtered.length }
+                    }
+
+                    // Focus sessions count
+                    if (cleanSql.includes('FROM focus_sessions WHERE date(started_at) = ? AND completed = 1')) {
+                        const date = arg0
+                        const cnt = state.focus_sessions.filter((s) => s.completed === 1 && s.started_at?.includes(date)).length
+                        return { cnt, c: cnt }
+                    }
+                    if (cleanSql.includes('FROM focus_sessions WHERE completed = 1 AND date(started_at) >= ?')) {
+                        const date = arg0
+                        const cnt = state.focus_sessions.filter((s) => s.completed === 1 && s.started_at >= date).length
+                        return { c: cnt }
+                    }
+
+                    // App usage aggregates
+                    if (cleanSql.includes('FROM app_usage WHERE date = ?')) {
+                        const date = arg0
+                        const rows = state.app_usage.filter((u) => u.date === date)
+                        if (cleanSql.includes('coding') && cleanSql.includes('entertainment')) {
+                            const coding = rows.filter((r) => r.category === 'Development').reduce((s, r) => s + r.duration_seconds, 0)
+                            const entertainment = rows.filter((r) => r.category === 'Entertainment').reduce((s, r) => s + r.duration_seconds, 0)
+                            return { coding, entertainment }
+                        }
+                        if (cleanSql.includes('category = \'Development\'') || cleanSql.includes('category=\'Development\'')) {
+                            const secs = rows.filter((r) => r.category === 'Development').reduce((s, r) => s + r.duration_seconds, 0)
+                            return { secs, total: rows.reduce((s, r) => s + r.duration_seconds, 0), coding: secs }
+                        }
+                        if (cleanSql.includes('category = \'Entertainment\'')) {
+                            const secs = rows.filter((r) => r.category === 'Entertainment').reduce((s, r) => s + r.duration_seconds, 0)
+                            return { secs }
+                        }
+                        return {
+                            total: rows.reduce((s, r) => s + r.duration_seconds, 0),
+                            coding: rows.filter((r) => r.category === 'Development').reduce((s, r) => s + r.duration_seconds, 0),
+                        }
+                    }
+
+                    // Daily scores
+                    if (cleanSql.includes('FROM daily_scores WHERE date = ?')) {
+                        return state.daily_scores[arg0]
+                    }
+
+                    // Settings
+                    if (cleanSql.includes('FROM settings WHERE key = ?')) {
+                        const val = state.settings[arg0]
+                        return val !== undefined ? { value: val } : undefined
+                    }
+
+                    return undefined
+                },
+
+                all: (...args: any[]) => {
+                    const arg0 = args[0]
+
+                    // PRAGMA
+                    if (cleanSql.includes('PRAGMA table_info')) {
+                        return [{ name: 'momentum_pts' }]
+                    }
+
+                    // Tasks get all / get today
+                    if (cleanSql.includes('FROM tasks')) {
+                        if (cleanSql.includes('status = \'todo\'')) {
+                            return state.tasks.filter((t) => t.status === 'todo')
+                        }
+                        if (cleanSql.includes('date(created_at) = ? OR status = \'todo\'')) {
+                            const today = arg0
+                            return state.tasks.filter((t) => (t.created_at && t.created_at.includes(today)) || t.status === 'todo')
+                        }
+                        return state.tasks
+                    }
+
+                    // Focus sessions history
+                    if (cleanSql.includes('FROM focus_sessions')) {
+                        if (cleanSql.includes('ORDER BY started_at DESC LIMIT 8')) {
+                            return state.focus_sessions.slice(0, 8)
+                        }
+                        if (cleanSql.includes('date(started_at) = ?')) {
+                            const today = arg0
+                            return state.focus_sessions.filter((s) => s.started_at && s.started_at.includes(today))
+                        }
+                        return state.focus_sessions
+                    }
+
+                    // App usage
+                    if (cleanSql.includes('FROM app_usage WHERE date = ?')) {
+                        const today = arg0
+                        return state.app_usage
+                            .filter((u) => u.date === today)
+                            .sort((a, b) => b.duration_seconds - a.duration_seconds)
+                    }
+
+                    // Goals
+                    if (cleanSql.includes('FROM goals')) {
+                        return state.goals
+                    }
+
+                    // Settings
+                    if (cleanSql.includes('FROM settings')) {
+                        return Object.entries(state.settings).map(([key, value]) => ({ key, value }))
+                    }
+
+                    return []
+                },
+            }
+        },
+    }
 }

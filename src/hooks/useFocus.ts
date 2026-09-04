@@ -39,11 +39,14 @@ export function useFocus() {
     }, [])
 
     const start = useCallback(async (taskId: number | null, minutes: number) => {
-        await window.electronAPI.focus.start(taskId, minutes)
+        const res = (await window.electronAPI.focus.start(taskId, minutes)) as {
+            success: boolean
+            session?: { taskTitle: string }
+        }
         setFocusState({
             remainingSeconds: minutes * 60,
             durationMinutes: minutes,
-            taskTitle: 'Focus Session',
+            taskTitle: res?.session?.taskTitle || 'Focus Session',
             paused: false,
         })
     }, [])

@@ -6,6 +6,8 @@ import { isFocusActive, registerFocusIPC } from './ipc/focus'
 import { registerScreenTimeIPC, setScreenTimeServiceRef } from './ipc/screenTime'
 import { getSetting, registerSettingsIPC, setSettingsChangeHandler } from './ipc/settings'
 import { registerPulseIPC } from './ipc/pulse'
+import { registerGitIPC } from './ipc/git'
+import { registerScratchpadIPC } from './ipc/scratchpad'
 import { ScreenTimeService } from './services/ScreenTimeService'
 import { adaptiveFocusMinutes, getPulseInsight } from './services/PulseEngine'
 
@@ -167,6 +169,8 @@ app.whenReady().then(() => {
     registerScreenTimeIPC()
     registerSettingsIPC()
     registerPulseIPC(isFocusActive)
+    registerGitIPC()
+    registerScratchpadIPC()
 
     screenTimeService = new ScreenTimeService((data) => {
         mainWindow?.webContents.send('screenTime:update', data)
@@ -179,6 +183,7 @@ app.whenReady().then(() => {
     if (getSetting('screenTimeTracking', 'true') === 'true') {
         screenTimeService.start()
     }
+})
 
 app.on('window-all-closed', () => {
     // On Windows, keep running in tray
