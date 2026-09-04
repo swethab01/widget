@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron'
 import { getDB } from '../database'
+import { localDate } from '../lib/dates'
+import { computeStreakDays, syncWeeklyGoals } from '../services/PulseEngine'
 
 interface Task {
     id: number
@@ -30,7 +32,7 @@ export function registerTaskIPC() {
     })
 
     ipcMain.handle('tasks:getToday', () => {
-        const today = new Date().toISOString().split('T')[0]
+        const today = localDate()
         return db.prepare(`
       SELECT * FROM tasks
       WHERE date(created_at) = ? OR status = 'todo'
@@ -94,14 +96,15 @@ export function registerTaskIPC() {
 
 function recalculateScore() {
     const db = getDB()
-    const today = new Date().toISOString().split('T')[0]
+    const today = localDate()
+    syncWeeklyGoals()
 
     const tasks = db.prepare(`
     SELECT COUNT(*) as total,
            SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done
     FROM tasks
-    WHERE date(created_at) = ?
-  `).get(today) as { total: number; done: number }
+    WHERE date(created_at) = ? OR date(completed_at) = ?
+  `).get(today, today) as { total: number; done: number }
 
     const tasksPts = tasks.total > 0 ? Math.round((tasks.done / tasks.total) * 25) : 0
 
@@ -125,14 +128,17 @@ function recalculateScore() {
     const entertainHours = entertainment.secs / 3600
     const distractionPts = Math.max(0, 15 - Math.round(entertainHours * 5))
 
-    const score = tasksPts + focusPts + codingPts + distractionPts
+    const streak = computeStreakDays()
+    const momentumPts = Math.min(20, streak * 4)
+
+    const score = tasksPts + focusPts + codingPts + distractionPts + momentumPts
     const clampedScore = Math.min(100, Math.max(0, score))
 
     db.prepare(`
     INSERT OR REPLACE INTO daily_scores
-    (date, score, tasks_pts, focus_pts, coding_pts, distraction_pts)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(today, clampedScore, tasksPts, focusPts, codingPts, distractionPts)
+    (date, score, tasks_pts, focus_pts, coding_pts, distraction_pts, momentum_pts)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(today, clampedScore, tasksPts, focusPts, codingPts, distractionPts, momentumPts)
 }
 
 export { recalculateScore }

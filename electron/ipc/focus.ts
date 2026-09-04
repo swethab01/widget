@@ -1,5 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { getDB } from '../database'
+import { localDate } from '../lib/dates'
+import { notify } from '../lib/notify'
 import { recalculateScore } from './tasks'
 
 interface FocusSession {
@@ -14,6 +16,10 @@ interface FocusSession {
 
 let activeSession: FocusSession | null = null
 let tickInterval: ReturnType<typeof setInterval> | null = null
+
+export function isFocusActive(): boolean {
+    return Boolean(activeSession && !activeSession.paused)
+}
 
 export function registerFocusIPC(win: BrowserWindow) {
     const db = getDB()
@@ -81,7 +87,7 @@ export function registerFocusIPC(win: BrowserWindow) {
     ipcMain.handle('focus:getActive', () => activeSession)
 
     ipcMain.handle('focus:getHistory', () => {
-        const today = new Date().toISOString().split('T')[0]
+        const today = localDate()
         return db.prepare(`
       SELECT * FROM focus_sessions
       WHERE date(started_at) = ?
@@ -111,7 +117,9 @@ function startTick(win: BrowserWindow) {
         SET ended_at = datetime('now','localtime'), completed = 1
         WHERE id = ?
       `).run(activeSession.sessionId)
-            win.webContents.send('focus:complete', { taskTitle: activeSession.taskTitle })
+            const title = activeSession.taskTitle
+            win.webContents.send('focus:complete', { taskTitle: title })
+            notify('Focus session complete', title ? `Finished: ${title}` : 'Nice work. Take a short break.')
             activeSession = null
             recalculateScore()
         }

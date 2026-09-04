@@ -87,8 +87,18 @@ function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at);
     CREATE INDEX IF NOT EXISTS idx_app_usage_date ON app_usage(date);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_app_usage_app_date ON app_usage(app_name, date);
     CREATE INDEX IF NOT EXISTS idx_focus_started ON focus_sessions(started_at);
   `)
+
+    migrateSchema()
+}
+
+function migrateSchema() {
+    const cols = db.prepare('PRAGMA table_info(daily_scores)').all() as { name: string }[]
+    if (!cols.some((c) => c.name === 'momentum_pts')) {
+        db.exec('ALTER TABLE daily_scores ADD COLUMN momentum_pts INTEGER DEFAULT 0')
+    }
 }
 
 function seedDefaultSettings() {

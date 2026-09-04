@@ -2,10 +2,12 @@ import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell } from 'ele
 import path from 'path'
 import { initDatabase } from './database'
 import { registerTaskIPC } from './ipc/tasks'
-import { registerFocusIPC } from './ipc/focus'
+import { isFocusActive, registerFocusIPC } from './ipc/focus'
 import { registerScreenTimeIPC, setScreenTimeServiceRef } from './ipc/screenTime'
-import { registerSettingsIPC } from './ipc/settings'
+import { getSetting, registerSettingsIPC, setSettingsChangeHandler } from './ipc/settings'
+import { registerPulseIPC } from './ipc/pulse'
 import { ScreenTimeService } from './services/ScreenTimeService'
+import { adaptiveFocusMinutes, getPulseInsight } from './services/PulseEngine'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -89,7 +91,11 @@ function createTray() {
             click: () => {
                 mainWindow?.show()
                 mainWindow?.focus()
-                mainWindow?.webContents.send('tray:startFocus')
+                const insight = getPulseInsight({ focusActive: isFocusActive() })
+                mainWindow?.webContents.send('tray:startFocus', {
+                    minutes: insight.suggestedMinutes,
+                    taskId: insight.nextTaskId,
+                })
             },
         },
         {
@@ -160,14 +166,19 @@ app.whenReady().then(() => {
     registerFocusIPC(mainWindow!)
     registerScreenTimeIPC()
     registerSettingsIPC()
+    registerPulseIPC(isFocusActive)
 
-    // Start screen time background service
     screenTimeService = new ScreenTimeService((data) => {
         mainWindow?.webContents.send('screenTime:update', data)
     })
     setScreenTimeServiceRef(screenTimeService)
-    screenTimeService.start()
-})
+
+    applyStoredSettings()
+    setSettingsChangeHandler(applySettingKey)
+
+    if (getSetting('screenTimeTracking', 'true') === 'true') {
+        screenTimeService.start()
+    }
 
 app.on('window-all-closed', () => {
     // On Windows, keep running in tray
@@ -183,3 +194,28 @@ app.on('activate', () => {
 app.on('before-quit', () => {
     screenTimeService?.stop()
 })
+
+function applyStoredSettings() {
+    applySettingKey('alwaysOnTop', getSetting('alwaysOnTop', 'false'))
+    applySettingKey('startWithWindows', getSetting('startWithWindows', 'false'))
+    applySettingKey('widgetMode', getSetting('widgetMode', 'normal'))
+}
+
+function applySettingKey(key: string, value: string) {
+    if (key === 'screenTimeTracking') {
+        const on = value === 'true'
+        screenTimeService?.setTracking(on)
+        if (on) screenTimeService?.start()
+        else screenTimeService?.stop()
+    }
+    if (key === 'alwaysOnTop') {
+        mainWindow?.setAlwaysOnTop(value === 'true')
+    }
+    if (key === 'startWithWindows') {
+        app.setLoginItemSettings({ openAtLogin: value === 'true' })
+    }
+    if (key === 'widgetMode' && (value === 'compact' || value === 'normal' || value === 'expanded')) {
+        const size = WINDOW_SIZES[value]
+        mainWindow?.setSize(size.width, size.height, true)
+    }
+}

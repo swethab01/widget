@@ -1,6 +1,20 @@
 import { ipcMain } from 'electron'
 import { getDB } from '../database'
 
+type SettingsChangeHandler = (key: string, value: string) => void
+let onSettingChange: SettingsChangeHandler | null = null
+
+export function setSettingsChangeHandler(fn: SettingsChangeHandler) {
+    onSettingChange = fn
+}
+
+export function getSetting(key: string, fallback = ''): string {
+    const row = getDB()
+        .prepare('SELECT value FROM settings WHERE key = ?')
+        .get(key) as { value: string } | undefined
+    return row?.value ?? fallback
+}
+
 export function registerSettingsIPC() {
     const db = getDB()
 
@@ -18,6 +32,7 @@ export function registerSettingsIPC() {
 
     ipcMain.handle('settings:set', (_e, key: string, value: string) => {
         db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value)
+        onSettingChange?.(key, value)
         return { success: true }
     })
 }

@@ -1,6 +1,7 @@
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { getDB } from '../database'
+import { localDate } from '../lib/dates'
 
 const execAsync = promisify(exec)
 
@@ -165,9 +166,9 @@ export class ScreenTimeService {
         $hw = [FG]::GetForegroundWindow()
         $sb = New-Object System.Text.StringBuilder 256
         [FG]::GetWindowText($hw, $sb, 256) | Out-Null
-        $pid = 0
-        [FG]::GetWindowThreadProcessId($hw, [ref]$pid) | Out-Null
-        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        $procId = 0
+        [FG]::GetWindowThreadProcessId($hw, [ref]$procId) | Out-Null
+        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
         if ($proc) {
           Write-Output "$($proc.ProcessName)|$($sb.ToString())"
         }
@@ -214,33 +215,26 @@ export class ScreenTimeService {
     private flushToDatabase() {
         if (this.sessionData.size === 0) return
         const db = getDB()
-        const today = new Date().toISOString().split('T')[0]
+        const today = localDate()
 
         const upsert = db.prepare(`
       INSERT INTO app_usage (app_name, window_title, category, date, duration_seconds, last_seen)
       VALUES (@appName, @windowTitle, @category, @date, @durationSeconds, datetime('now','localtime'))
-      ON CONFLICT DO NOTHING
-    `)
-
-        const update = db.prepare(`
-      UPDATE app_usage
-      SET duration_seconds = duration_seconds + @durationSeconds,
-          window_title = @windowTitle,
-          last_seen = datetime('now','localtime')
-      WHERE app_name = @appName AND date = @date
+      ON CONFLICT(app_name, date) DO UPDATE SET
+        duration_seconds = duration_seconds + excluded.duration_seconds,
+        window_title = excluded.window_title,
+        last_seen = datetime('now','localtime')
     `)
 
         const flush = db.transaction(() => {
             for (const [, record] of this.sessionData) {
-                const existing = db.prepare(
-                    'SELECT id FROM app_usage WHERE app_name = ? AND date = ?'
-                ).get(record.appName, today)
-
-                if (existing) {
-                    update.run({ appName: record.appName, windowTitle: record.windowTitle, durationSeconds: record.durationSeconds, date: today })
-                } else {
-                    upsert.run({ appName: record.appName, windowTitle: record.windowTitle, category: record.category, durationSeconds: record.durationSeconds, date: today })
-                }
+                upsert.run({
+                    appName: record.appName,
+                    windowTitle: record.windowTitle,
+                    category: record.category,
+                    durationSeconds: record.durationSeconds,
+                    date: today,
+                })
             }
         })
 
@@ -251,7 +245,7 @@ export class ScreenTimeService {
 
     getSummary() {
         const db = getDB()
-        const today = new Date().toISOString().split('T')[0]
+        const today = localDate()
         const rows = db.prepare(
             'SELECT app_name, window_title, category, duration_seconds FROM app_usage WHERE date = ? ORDER BY duration_seconds DESC'
         ).all(today) as { app_name: string; window_title: string; category: string; duration_seconds: number }[]

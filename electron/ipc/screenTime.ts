@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDB } from '../database'
+import { localDate } from '../lib/dates'
 import type { ScreenTimeService } from '../services/ScreenTimeService'
 
 // We'll import to get the singleton instance from main via a module-level ref
@@ -15,7 +16,7 @@ export function registerScreenTimeIPC() {
     ipcMain.handle('screenTime:getToday', () => {
         if (serviceRef) return serviceRef.getSummary()
         // Fallback: read from DB only
-        const today = new Date().toISOString().split('T')[0]
+        const today = localDate()
         const rows = db.prepare(
             'SELECT app_name, category, duration_seconds FROM app_usage WHERE date = ? ORDER BY duration_seconds DESC'
         ).all(today) as { app_name: string; category: string; duration_seconds: number }[]
@@ -34,7 +35,7 @@ export function registerScreenTimeIPC() {
         for (let i = 0; i < days; i++) {
             const d = new Date()
             d.setDate(d.getDate() - i)
-            const date = d.toISOString().split('T')[0]
+            const date = localDate(d)
             const row = db.prepare(`
         SELECT COALESCE(SUM(duration_seconds), 0) as total,
                COALESCE(SUM(CASE WHEN category='Development' THEN duration_seconds ELSE 0 END), 0) as coding
@@ -46,9 +47,9 @@ export function registerScreenTimeIPC() {
     })
 
     ipcMain.handle('score:getToday', () => {
-        const today = new Date().toISOString().split('T')[0]
+        const today = localDate()
         const row = db.prepare('SELECT * FROM daily_scores WHERE date = ?').get(today) as Record<string, number | string> | undefined
-        if (!row) return { date: today, score: 0, tasks_pts: 0, focus_pts: 0, coding_pts: 0, distraction_pts: 0 }
+        if (!row) return { date: today, score: 0, tasks_pts: 0, focus_pts: 0, coding_pts: 0, distraction_pts: 0, momentum_pts: 0 }
         return row
     })
 
@@ -57,9 +58,9 @@ export function registerScreenTimeIPC() {
         for (let i = 0; i < days; i++) {
             const d = new Date()
             d.setDate(d.getDate() - i)
-            const date = d.toISOString().split('T')[0]
+            const date = localDate(d)
             const row = db.prepare('SELECT * FROM daily_scores WHERE date = ?').get(date) as Record<string, number | string> | undefined
-            results.push(row || { date, score: 0, tasks_pts: 0, focus_pts: 0, coding_pts: 0, distraction_pts: 0 })
+            results.push(row || { date, score: 0, tasks_pts: 0, focus_pts: 0, coding_pts: 0, distraction_pts: 0, momentum_pts: 0 })
         }
         return results.reverse()
     })
