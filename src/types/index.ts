@@ -3,7 +3,7 @@
 export type Priority = 'high' | 'medium' | 'low'
 export type TaskStatus = 'todo' | 'done'
 export type WidgetMode = 'compact' | 'normal' | 'expanded' | 'canvas'
-export type DesktopWallpaper = 'spiderman' | 'mountains' | 'forest' | 'cyber'
+export type DesktopWallpaper = 'sonoma' | 'sequoia' | 'spiderman' | 'mountains' | 'forest' | 'cyber'
 
 export interface Task {
     id: number
@@ -70,6 +70,7 @@ export interface DailyScore {
     distraction_pts: number
     github_pts?: number
     leetcode_pts?: number
+    momentum_pts?: number
 }
 
 export interface Goal {

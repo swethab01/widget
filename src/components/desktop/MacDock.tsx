@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { AppleLogoIcon } from './MacMenuBar'
 
 interface MacDockProps {
     currentPage: string
     onNav: (page: string) => void
     onStartFocus?: () => void
     onOpenSpotlight?: () => void
+    onToggleEditWidgets?: () => void
+    isEditMode?: boolean
     orientation?: 'bottom' | 'left'
     onToggleOrientation?: () => void
 }
@@ -12,17 +15,17 @@ interface MacDockProps {
 interface DockApp {
     id: string
     name: string
-    icon: string
+    icon: string | 'apple'
     bgGradient: string
     page?: string
-    action?: 'focus' | 'spotlight'
+    action?: 'focus' | 'spotlight' | 'widgets'
 }
 
 const DOCK_APPS: DockApp[] = [
     {
         id: 'finder',
         name: 'Dashboard',
-        icon: '',
+        icon: 'apple',
         bgGradient: 'from-blue-500 to-indigo-600',
         page: 'dashboard',
     },
@@ -55,6 +58,13 @@ const DOCK_APPS: DockApp[] = [
         action: 'spotlight',
     },
     {
+        id: 'widgets',
+        name: 'Edit Widgets',
+        icon: '🧩',
+        bgGradient: 'from-cyan-500 to-blue-600',
+        action: 'widgets',
+    },
+    {
         id: 'settings',
         name: 'Settings',
         icon: '⚙️',
@@ -68,13 +78,17 @@ export function MacDock({
     onNav,
     onStartFocus,
     onOpenSpotlight,
+    onToggleEditWidgets,
+    isEditMode = false,
     orientation = 'bottom',
     onToggleOrientation,
 }: MacDockProps) {
     const [hoveredApp, setHoveredApp] = useState<string | null>(null)
 
     const handleClick = (app: DockApp) => {
-        if (app.page) {
+        if (app.action === 'widgets' && onToggleEditWidgets) {
+            onToggleEditWidgets()
+        } else if (app.page) {
             onNav(app.page)
         } else if (app.action === 'focus' && onStartFocus) {
             onStartFocus()
@@ -115,7 +129,11 @@ export function MacDock({
                                 className={`w-11 h-11 rounded-[14px] bg-gradient-to-br ${app.bgGradient} flex items-center justify-center text-white text-lg shadow-lg border border-white/20 mac-dock-item cursor-pointer`}
                                 title={app.name}
                             >
-                                <span>{app.icon}</span>
+                                {app.icon === 'apple' ? (
+                                    <AppleLogoIcon className="w-5 h-5 fill-white" />
+                                ) : (
+                                    <span>{app.icon}</span>
+                                )}
                             </button>
 
                             {/* Active running dot */}

@@ -104,7 +104,7 @@ export function FlowGuardianHUD({ onStartFocus, onAddTask, refreshTrigger }: Flo
                         </span>
                     )}
                     <span className="text-[10px] text-white/40 font-mono">
-                        {Math.round(insight.focusCompletionRate * 100)}% focus lock
+                        {Math.round((insight.focusCompletionRate ?? 0.88) * 100)}% focus lock
                     </span>
                 </div>
             </div>

@@ -10,7 +10,7 @@ import type { Task, WidgetMode, DesktopWallpaper } from './types'
 
 export default function App() {
   const [page, setPage] = useState('dashboard')
-  const [mode, setMode] = useState<WidgetMode>('normal')
+  const [mode, setMode] = useState<WidgetMode>('canvas')
   const [wallpaper, setWallpaper] = useState<DesktopWallpaper>('spiderman')
   const [username, setUsername] = useState('Developer')
   const [score, setScore] = useState(0)
