@@ -26,7 +26,7 @@ const openWidgetWindows = new Map<string, BrowserWindow>()
 
 // Precise dimensions for each individual desktop widget card
 const WIDGET_DIMENSIONS: Record<string, { width: number; height: number }> = {
-    'leetcode': { width: 410, height: 540 },
+    'leetcode': { width: 420, height: 580 },
     'tasks': { width: 360, height: 460 },
     'goals': { width: 360, height: 460 },
     'chatgpt': { width: 320, height: 140 },
