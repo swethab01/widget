@@ -370,6 +370,111 @@ export function setupMockElectronAPI(): void {
             },
         },
 
+        leetcode: {
+            getProfile: async (username?: string) => {
+                const u = username || localStorage.getItem('devpulse_leetcode_username') || 's4njay'
+                const refNow = Math.floor(Date.now() / 1000)
+                const cal: Record<string, number> = {}
+                for (let i = 0; i < 365; i++) {
+                    if ((i * 7 + 3) % 11 > 3) {
+                        cal[String(refNow - i * 86400)] = (i % 4) + 1
+                    }
+                }
+
+                return {
+                    success: true,
+                    data: {
+                        username: u,
+                        realName: 'Sanjay',
+                        avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${u}`,
+                        ranking: 477036,
+                        streak: 46,
+                        maxStreak: 46,
+                        totalActiveDays: 197,
+                        solved: {
+                            all: 310,
+                            easy: 244,
+                            medium: 64,
+                            hard: 2,
+                        },
+                        allQuestionsCount: {
+                            all: 4046,
+                            easy: 963,
+                            medium: 2111,
+                            hard: 972,
+                        },
+                        submissionCalendar: cal,
+                        daily: {
+                            id: '128',
+                            title: 'Longest Consecutive Sequence',
+                            slug: 'longest-consecutive-sequence',
+                            difficulty: 'Medium' as const,
+                            link: 'https://leetcode.com/problems/longest-consecutive-sequence/',
+                            tags: ['Array', 'Hash Table', 'Union Find'],
+                            acceptance: '47.5%',
+                        },
+                    },
+                }
+            },
+            getDaily: async () => ({
+                success: true,
+                data: {
+                    id: '115',
+                    title: 'Distinct Subsequences',
+                    slug: 'distinct-subsequences',
+                    difficulty: 'Hard' as const,
+                    link: 'https://leetcode.com/problems/distinct-subsequences/',
+                    tags: ['String', 'Dynamic Programming'],
+                    acceptance: '53.5%',
+                },
+            }),
+        },
+
+        chatgpt: {
+            getConfig: async () => ({
+                accountId: localStorage.getItem('devpulse_chatgpt_account') || null,
+                hasKey: Boolean(localStorage.getItem('devpulse_openai_key')),
+                maskedKey: localStorage.getItem('devpulse_openai_key') ? 'sk-live...99a1' : '',
+                model: 'gpt-4o-mini',
+            }),
+            saveConfig: async (cfg: { apiKey?: string; accountId?: string; model?: string }) => {
+                if (cfg.apiKey !== undefined) localStorage.setItem('devpulse_openai_key', cfg.apiKey)
+                if (cfg.accountId !== undefined) localStorage.setItem('devpulse_chatgpt_account', cfg.accountId)
+                return { success: true }
+            },
+            verifyKey: async () => ({ valid: true }),
+            ask: async ({ prompt }: { prompt: string }) => ({
+                success: true,
+                text: `[Mock AI Answer for "${prompt}"]: Analysis complete. In development mode with mock AI. Connect OpenAI API Key in Desktop Electron to fetch live ChatGPT responses!`,
+            }),
+            openApp: async (prompt?: string) => {
+                if (prompt) window.open(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`, '_blank')
+                else window.open('https://chatgpt.com', '_blank')
+                return { success: true, copied: true }
+            },
+            openDesktopWeb: async (prompt?: string) => {
+                if (prompt) window.open(`https://chatgpt.com/?q=${encodeURIComponent(prompt)}`, '_blank')
+                else window.open('https://chatgpt.com', '_blank')
+                return { success: true }
+            },
+            isAppInstalled: async () => true,
+        },
+
+        widgets: {
+            getActive: async () => ['leetcode', 'tasks', 'goals', 'chatgpt'],
+            toggle: async () => ({ active: true }),
+            open: async () => ({ success: true }),
+            close: async () => ({ success: true }),
+            closeCurrent: () => console.log('[Mock Widgets] closeCurrent'),
+            openManager: (tab?: string) => console.log('[Mock Widgets] openManager', tab),
+            openSettings: () => console.log('[Mock Widgets] openSettings'),
+            launchFocus: async () => console.log('[Mock Widgets] launchFocus'),
+            launchEssentials: async () => console.log('[Mock Widgets] launchEssentials'),
+            launchKevTech: async () => console.log('[Mock Widgets] launchKevTech'),
+            launchMacBook: async () => console.log('[Mock Widgets] launchMacBook'),
+            closeAll: async () => console.log('[Mock Widgets] closeAll'),
+        },
+
         openExternal: (url: string) => {
             window.open(url, '_blank')
         },

@@ -60,6 +60,11 @@ const APP_CATEGORIES: Record<string, string> = {
     powerpoint: 'Productivity',
     acrobat: 'Productivity',
 
+    // AI Assistants
+    chatgpt: 'AI Assistant',
+    'chatgpt-classic': 'AI Assistant',
+    claude: 'AI Assistant',
+
     // System
     explorer: 'System',
     taskmgr: 'System',
@@ -94,6 +99,29 @@ interface AppUsageRecord {
     category: string
     durationSeconds: number
 }
+
+const PS_FOREGROUND_SCRIPT = `
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public class WinFG {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
+}
+"@
+$hwnd = [WinFG]::GetForegroundWindow()
+$sb = New-Object System.Text.StringBuilder 256
+[WinFG]::GetWindowText($hwnd, $sb, 256) | Out-Null
+$pId = 0
+[WinFG]::GetWindowThreadProcessId($hwnd, [ref]$pId) | Out-Null
+$proc = Get-Process -Id $pId -ErrorAction SilentlyContinue
+if ($proc) {
+    Write-Output "$($proc.ProcessName)|$($sb.ToString())"
+}
+`
+const PS_ENCODED_CMD = Buffer.from(PS_FOREGROUND_SCRIPT, 'utf16le').toString('base64')
 
 export class ScreenTimeService {
     private intervalId: ReturnType<typeof setInterval> | null = null
@@ -152,46 +180,16 @@ export class ScreenTimeService {
 
     private async getForegroundApp(): Promise<{ appName: string; windowTitle: string } | null> {
         try {
-            const ps = `
-        Add-Type @"
-          using System;
-          using System.Runtime.InteropServices;
-          using System.Text;
-          public class FG {
-            [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-            [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
-            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
-          }
-"@
-        $hw = [FG]::GetForegroundWindow()
-        $sb = New-Object System.Text.StringBuilder 256
-        [FG]::GetWindowText($hw, $sb, 256) | Out-Null
-        $procId = 0
-        [FG]::GetWindowThreadProcessId($hw, [ref]$procId) | Out-Null
-        $proc = Get-Process -Id $procId -ErrorAction SilentlyContinue
-        if ($proc) {
-          Write-Output "$($proc.ProcessName)|$($sb.ToString())"
-        }
-      `
-            const { stdout } = await execAsync(`powershell -NoProfile -NonInteractive -Command "${ps.replace(/\n/g, ' ')}"`, { timeout: 4000 })
+            const { stdout } = await execAsync(
+                `powershell.exe -NoProfile -NonInteractive -EncodedCommand ${PS_ENCODED_CMD}`,
+                { timeout: 3500 }
+            )
             const line = stdout.trim()
-            if (!line.includes('|')) return null
+            if (!line || !line.includes('|')) return null
             const [appName, ...titleParts] = line.split('|')
             return { appName: appName.trim(), windowTitle: titleParts.join('|').trim() }
         } catch {
-            // Fallback: get running windows
-            try {
-                const { stdout } = await execAsync(
-                    'powershell -NoProfile -NonInteractive -Command "Get-Process | Where-Object {$_.MainWindowTitle -ne \'\'} | Select-Object -First 1 | ForEach-Object { $_.ProcessName + \'|\' + $_.MainWindowTitle }"',
-                    { timeout: 3000 }
-                )
-                const line = stdout.trim()
-                if (!line.includes('|')) return null
-                const [appName, ...titleParts] = line.split('|')
-                return { appName: appName.trim(), windowTitle: titleParts.join('|').trim() }
-            } catch {
-                return null
-            }
+            return null
         }
     }
 

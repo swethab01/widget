@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { WidgetMode } from '../types'
 
 interface HeaderProps {
@@ -21,6 +21,12 @@ export function Header({
 }: HeaderProps) {
     const [alwaysOnTop, setAlwaysOnTop] = useState(false)
 
+    useEffect(() => {
+        window.electronAPI.settings.get('alwaysOnTop').then((val) => {
+            if (val === 'true') setAlwaysOnTop(true)
+        })
+    }, [])
+
     const handleClose = () => window.electronAPI.window.hide()
     const handleMinimize = () => window.electronAPI.window.minimize()
     const handleZoom = () => {
@@ -33,6 +39,7 @@ export function Header({
         const next = !alwaysOnTop
         setAlwaysOnTop(next)
         window.electronAPI.window.setAlwaysOnTop(next)
+        window.electronAPI.settings.set('alwaysOnTop', String(next))
     }
 
     const scoreColor =
@@ -116,15 +123,15 @@ export function Header({
                     {/* Desktop Canvas Mode Toggle */}
                     <button
                         onClick={() => onModeChange(mode === 'canvas' ? 'normal' : 'canvas')}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all cursor-pointer ${
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all cursor-pointer ${
                             mode === 'canvas'
-                                ? 'bg-blue-500/25 text-blue-300 border-blue-500/40 shadow-sm'
-                                : 'bg-white/[0.06] text-white/60 border-white/[0.08] hover:text-white hover:bg-white/10'
+                                ? 'bg-blue-600 text-white border-blue-400 shadow-sm'
+                                : 'bg-blue-600/90 hover:bg-blue-500 text-white border-blue-500 shadow'
                         }`}
-                        title="Toggle Full macOS Desktop Canvas Mode"
+                        title="Switch to Full Desktop Wallpaper Canvas (Pick & Place Widgets)"
                     >
                         <span>🖥️</span>
-                        <span className="hidden sm:inline">Desktop</span>
+                        <span>Desktop Canvas</span>
                     </button>
 
                     {/* Spotlight search button */}

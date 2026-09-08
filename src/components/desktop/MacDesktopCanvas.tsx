@@ -14,6 +14,7 @@ import { KevCDWidget } from './KevCDWidget'
 import { KevComicWidget } from './KevComicWidget'
 import { KevDateTile } from './KevDateTile'
 import { KevPhotoTile } from './KevPhotoTile'
+import { KevAppStackWidget } from './KevAppStackWidget'
 import { LeetCodeWidget } from './LeetCodeWidget'
 import { ChatGPTSearchWidget } from './ChatGPTSearchWidget'
 import { RetroFlipClockWidget } from './RetroFlipClockWidget'
@@ -44,36 +45,35 @@ interface PlacedWidget {
     zIndex: number
 }
 
-const DEFAULT_PLACED_WIDGETS: PlacedWidget[] = [
-    // Top Row - Column 1
-    { id: 'kev-cd', type: 'kev-cd', title: 'Spider-Man Web CD', x: 490, y: 55, zIndex: 10 },
-    { id: 'kev-photo', type: 'kev-photo', title: 'Photo Tile', x: 490, y: 215, zIndex: 10 },
-
-    // Top Row - Column 2 (Tall 2x4 Comic)
-    { id: 'kev-comic', type: 'kev-comic', title: 'Spider-Man Comic Poster', x: 650, y: 55, zIndex: 11 },
-
-    // Top Row - Column 3 (Weather)
-    { id: 'kev-weather', type: 'kev-weather', title: 'Doha 23° Weather', x: 810, y: 55, zIndex: 10 },
-
-    // Top Row - Column 4 (Minimal Clock + Spider-Man Date)
-    { id: 'kev-clock', type: 'kev-clock', title: 'Minimal Digital Clock', x: 1140, y: 55, zIndex: 10 },
-    { id: 'kev-date', type: 'kev-date', title: 'Wednesday March 25', x: 1140, y: 215, zIndex: 10 },
-
-    // Bottom Row - Column 1
-    { id: 'kev-quote', type: 'kev-quote', title: 'Daniel 3:18 Quote', x: 490, y: 380, zIndex: 10 },
-    { id: 'kev-date-2', type: 'kev-date', title: 'Spider-Man Comic Tile', x: 490, y: 540, zIndex: 10 },
-
-    // Bottom Row - Column 2 (Tall 2x4 Battery)
-    { id: 'kev-battery', type: 'kev-battery', title: 'Apple Battery Monitor', x: 650, y: 380, zIndex: 11 },
-
-    // Bottom Row - Column 3 (Music + ChatGPT Omnibar)
-    { id: 'kev-music', type: 'kev-music', title: 'Mona Lisa - Dominic Fike', x: 810, y: 380, zIndex: 10 },
-    { id: 'chatgpt', type: 'chatgpt', title: 'ChatGPT Omnibar', x: 810, y: 540, zIndex: 12 },
-
-    // Bottom Row - Column 4 (Calendar + LeetCode Search)
-    { id: 'kev-calendar', type: 'kev-calendar', title: 'March 25 Calendar', x: 1140, y: 380, zIndex: 10 },
-    { id: 'leetcode', type: 'leetcode', title: 'LeetCode Daily & Search', x: 1140, y: 540, zIndex: 12 },
+// Developer Focus Layout: LeetCode + Today's Tasks + Habits Tracker + ChatGPT Box
+const DEV_FOCUS_LAYOUT: PlacedWidget[] = [
+    { id: 'chatgpt',  type: 'chatgpt',  title: 'ChatGPT Search Box',        x: 460, y: 30,  zIndex: 10 },
+    { id: 'leetcode', type: 'leetcode', title: 'LeetCode Daily Problem',    x: 40,  y: 30,  zIndex: 10 },
+    { id: 'goals',    type: 'goals',    title: 'Daily Habits & Goals',      x: 40,  y: 430, zIndex: 10 },
+    { id: 'tasks',    type: 'tasks',    title: "Today's Tasks Checklist",   x: 940, y: 30,  zIndex: 10 },
 ]
+
+// KevTech layout — no clock, no date tile
+const KEVTECH_LAYOUT: PlacedWidget[] = [
+    { id: 'kev-battery',  type: 'kev-battery',  title: 'Laptop Battery Monitor',   x: 870, y: 40,  zIndex: 11 },
+    { id: 'kev-weather',  type: 'kev-weather',  title: 'Weather (Doha 23°)',       x: 345, y: 40,  zIndex: 10 },
+    { id: 'kev-calendar', type: 'kev-calendar', title: 'Dark March Calendar',      x: 345, y: 220, zIndex: 10 },
+    { id: 'kev-music',    type: 'kev-music',    title: 'Dominic Fike Now Playing', x: 345, y: 400, zIndex: 10 },
+    { id: 'kev-comic',    type: 'kev-comic',    title: 'Spider-Man Comic Art',     x: 155, y: 40,  zIndex: 10 },
+    { id: 'kev-cd',       type: 'kev-cd',       title: 'Spider-Man CD Disc',       x: 10,  y: 40,  zIndex: 10 },
+    { id: 'kev-photo',    type: 'kev-photo',    title: 'Photo Tile',               x: 10,  y: 230, zIndex: 10 },
+    { id: 'kev-quote',    type: 'kev-quote',    title: 'Daniel 3:18 Quote',        x: 10,  y: 420, zIndex: 10 },
+]
+
+// MacBook layout — no clock, no date tile
+const MACBOOK_LAYOUT: PlacedWidget[] = [
+    { id: 'kev-appstack-left',  type: 'kev-appstack', title: 'App Stack',    x: 20,  y: 40,  zIndex: 10 },
+    { id: 'kev-weather',        type: 'kev-weather',  title: 'Weather',      x: 20,  y: 320, zIndex: 10 },
+    { id: 'kev-appstack-right', type: 'kev-appstack', title: 'Dev Stack',    x: 700, y: 40,  zIndex: 10 },
+    { id: 'kev-battery',        type: 'kev-battery',  title: 'Battery',      x: 700, y: 320, zIndex: 10 },
+]
+
+const DEFAULT_PLACED_WIDGETS: PlacedWidget[] = DEV_FOCUS_LAYOUT
 
 interface MacDesktopCanvasProps {
     currentWallpaper: DesktopWallpaper
@@ -104,23 +104,20 @@ export function MacDesktopCanvas({
     const [maxZIndex, setMaxZIndex] = useState(20)
     const [dockOrientation, setDockOrientation] = useState<'bottom' | 'left'>('left')
 
-    // Load saved widgets and positions
+    // v10 — pure developer focus: LeetCode + Tasks + Habits + ChatGPT
     const [placedWidgets, setPlacedWidgets] = useState<PlacedWidget[]>(() => {
         try {
-            const saved = localStorage.getItem('devpulse_placed_widgets_v4')
+            const saved = localStorage.getItem('devpulse_placed_widgets_v10')
             if (saved) {
                 const parsed = JSON.parse(saved)
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed
             }
-        } catch {
-            // fallback
-        }
+        } catch {}
         return DEFAULT_PLACED_WIDGETS
     })
 
-    // Save positions whenever placedWidgets change
     useEffect(() => {
-        localStorage.setItem('devpulse_placed_widgets_v4', JSON.stringify(placedWidgets))
+        localStorage.setItem('devpulse_placed_widgets_v10', JSON.stringify(placedWidgets))
     }, [placedWidgets])
 
     const handleBringToFront = (id: string) => {
@@ -163,12 +160,34 @@ export function MacDesktopCanvas({
         }
     }
 
+    const handleClearAll = () => {
+        setPlacedWidgets([])
+        localStorage.setItem('devpulse_placed_widgets_v10', JSON.stringify([]))
+    }
+
     const handleResetLayout = () => {
         setPlacedWidgets(DEFAULT_PLACED_WIDGETS)
         localStorage.setItem(
-            'devpulse_placed_widgets_v4',
+            'devpulse_placed_widgets_v10',
             JSON.stringify(DEFAULT_PLACED_WIDGETS)
         )
+    }
+
+    const handleFocusLayout = () => {
+        setPlacedWidgets(DEV_FOCUS_LAYOUT)
+        localStorage.setItem('devpulse_placed_widgets_v10', JSON.stringify(DEV_FOCUS_LAYOUT))
+    }
+
+    const handleKevTechLayout = () => {
+        setPlacedWidgets(KEVTECH_LAYOUT)
+        localStorage.setItem('devpulse_placed_widgets_v10', JSON.stringify(KEVTECH_LAYOUT))
+        onSelectWallpaper('spiderman')
+    }
+
+    const handleMacBookLayout = () => {
+        setPlacedWidgets(MACBOOK_LAYOUT)
+        localStorage.setItem('devpulse_placed_widgets_v10', JSON.stringify(MACBOOK_LAYOUT))
+        onSelectWallpaper('mountains')
     }
 
     // Wallpaper background styling
@@ -195,7 +214,7 @@ export function MacDesktopCanvas({
             case 'mountains':
                 return {
                     background:
-                        'linear-gradient(180deg, #1e293b 0%, #0f172a 40%, #020617 100%)',
+                        'linear-gradient(175deg, #6b8fa3 0%, #4a7a8a 15%, #3d6b7a 30%, #2d5a6b 45%, #1a3a4a 65%, #0d1f2d 85%, #060f18 100%)',
                 }
             case 'forest':
                 return {
@@ -235,6 +254,8 @@ export function MacDesktopCanvas({
                 return <KevDateTile />
             case 'kev-photo':
                 return <KevPhotoTile />
+            case 'kev-appstack':
+                return <KevAppStackWidget />
 
             // User Requested Developer Widgets
             case 'leetcode':
@@ -265,11 +286,17 @@ export function MacDesktopCanvas({
                         onToggle={tasks.toggleTask}
                         onDelete={tasks.deleteTask}
                         onFocusTask={(taskId, min) => onStartFocus(taskId, min)}
+                        onClose={() => handleRemoveWidget(widget.id)}
                         className="w-80 md:w-96"
                     />
                 )
             case 'goals':
-                return <MacGoalsWidget className="w-80 md:w-96" />
+                return (
+                    <MacGoalsWidget
+                        onClose={() => handleRemoveWidget(widget.id)}
+                        className="w-80 md:w-96"
+                    />
+                )
             case 'focus':
                 return <MacFocusWidget className="w-80" />
             case 'score':
@@ -351,25 +378,102 @@ export function MacDesktopCanvas({
                     </DraggableWidgetContainer>
                 ))}
 
+                {/* Floating Desktop Widget Control Bar */}
+                <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3.5 py-1.5 bg-black/65 backdrop-blur-2xl border border-white/20 rounded-full shadow-2xl">
+                    <button
+                        onClick={() => {
+                            setIsEditMode(true)
+                            setIsGalleryOpen(true)
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
+                    >
+                        <span>🧩</span>
+                        <span>+ Widgets</span>
+                    </button>
+                    <button
+                        onClick={handleFocusLayout}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold shadow-lg transition-all cursor-pointer border border-amber-400/30"
+                        title="Launch Dev Focus Setup (LeetCode + Tasks + Habits + ChatGPT)"
+                    >
+                        <span>🔥</span>
+                        <span>Dev Focus</span>
+                    </button>
+                    <button
+                        onClick={handleKevTechLayout}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-red-700 to-rose-600 hover:from-red-600 hover:to-rose-500 text-white text-xs font-bold shadow-md transition-all cursor-pointer border border-red-400/30"
+                        title="Launch KevTech Full Setup (10 widgets, Spider-Man wallpaper)"
+                    >
+                        <span>🕷️</span>
+                        <span>KevTech</span>
+                    </button>
+                    <button
+                        onClick={handleMacBookLayout}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-slate-600 to-blue-700 hover:from-slate-500 hover:to-blue-600 text-white text-xs font-bold shadow-md transition-all cursor-pointer border border-blue-400/30"
+                        title="Launch MacBook Mountain Layout (Image 2 style)"
+                    >
+                        <span>🏔️</span>
+                        <span>MacBook</span>
+                    </button>
+                    <div className="h-4 w-[1px] bg-white/20" />
+                    <button
+                        onClick={() => {
+                            const list: DesktopWallpaper[] = ['spiderman', 'sonoma', 'sequoia', 'mountains', 'forest', 'cyber']
+                            const idx = list.indexOf(currentWallpaper)
+                            const next = list[(idx + 1) % list.length]
+                            onSelectWallpaper(next)
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/90 text-xs font-medium transition-colors cursor-pointer"
+                        title="Change Desktop Wallpaper"
+                    >
+                        <span>🖼️</span>
+                        <span className="capitalize">{currentWallpaper}</span>
+                    </button>
+                    <button
+                        onClick={handleClearAll}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 hover:bg-rose-500/30 text-white/70 hover:text-rose-200 text-xs font-medium transition-colors cursor-pointer"
+                        title="Remove all widgets from wallpaper"
+                    >
+                        <span>🧹</span>
+                        <span>Clear</span>
+                    </button>
+                    <button
+                        onClick={handleResetLayout}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/15 text-white/70 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                        title="Reset to 4 clean widgets"
+                    >
+                        <span>↺</span>
+                        <span>Reset</span>
+                    </button>
+                    <div className="h-4 w-[1px] bg-white/20" />
+                    <button
+                        onClick={() => onModeChange('normal')}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                        title="Dock as compact sidebar widget beside code editor"
+                    >
+                        <span>📱</span>
+                        <span>Sidebar</span>
+                    </button>
+                </div>
+
                 {/* Empty State / Help Pill if all widgets removed */}
                 {placedWidgets.length === 0 && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <div className="p-6 rounded-3xl bg-black/50 backdrop-blur-2xl border border-white/10 text-center max-w-sm pointer-events-auto">
-                            <div className="text-4xl mb-2">🕷️</div>
-                            <h3 className="text-sm font-bold text-white mb-1">
-                                No Widgets on Screen
+                        <div className="p-6 rounded-3xl bg-black/60 backdrop-blur-2xl border border-white/15 text-center max-w-sm pointer-events-auto shadow-2xl">
+                            <div className="text-4xl mb-2">🧩</div>
+                            <h3 className="text-base font-bold text-white mb-1">
+                                Clean Wallpaper Canvas
                             </h3>
-                            <p className="text-xs text-white/50 mb-3 leading-relaxed">
-                                Open the Widget Gallery below to pick widgets and place them on your screen.
+                            <p className="text-xs text-white/60 mb-4 leading-relaxed">
+                                Pick only the widgets you want and place them anywhere on your desktop wallpaper.
                             </p>
                             <button
                                 onClick={() => {
                                     setIsEditMode(true)
                                     setIsGalleryOpen(true)
                                 }}
-                                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors cursor-pointer"
+                                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-lg"
                             >
-                                + Open Widget Gallery
+                                + Open Widget Catalog
                             </button>
                         </div>
                     </div>
@@ -403,6 +507,7 @@ export function MacDesktopCanvas({
                 activeWidgetIds={placedWidgets.map((w) => w.id)}
                 onToggleWidget={handleToggleWidget}
                 onResetLayout={handleResetLayout}
+                onClearAll={handleClearAll}
             />
 
             {/* Floating macOS App Windows */}

@@ -1,14 +1,39 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface BatteryRingsWidgetProps {
     className?: string
 }
 
 export function BatteryRingsWidget({ className = '' }: BatteryRingsWidgetProps) {
-    const [batteryLevel] = useState(94)
+    const [batteryLevel, setBatteryLevel] = useState(94)
+    const [isCharging, setIsCharging] = useState(false)
     const [cpuLoad] = useState(38)
     const [ramUsage] = useState(62)
     const [focusProgress] = useState(85)
+
+    useEffect(() => {
+        let batteryObj: any = null
+        if ('getBattery' in navigator) {
+            ;(navigator as any).getBattery().then((battery: any) => {
+                batteryObj = battery
+                const update = () => {
+                    setBatteryLevel(Math.round(battery.level * 100))
+                    setIsCharging(battery.charging)
+                }
+                update()
+                battery.addEventListener('levelchange', update)
+                battery.addEventListener('chargingchange', update)
+            }).catch(() => {})
+        }
+        return () => {
+            if (batteryObj) {
+                try {
+                    batteryObj.removeEventListener('levelchange', () => {})
+                    batteryObj.removeEventListener('chargingchange', () => {})
+                } catch {}
+            }
+        }
+    }, [])
 
     // Helper for SVG circular progress
     const radius = 22
@@ -26,7 +51,10 @@ export function BatteryRingsWidget({ className = '' }: BatteryRingsWidgetProps) 
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mac-pulse-dot" />
                     <span className="font-semibold text-white/70">BATTERY & SYSTEM</span>
                 </div>
-                <span className="text-[10px] text-emerald-400 font-bold">{batteryLevel}%</span>
+                <div className="flex items-center gap-1">
+                    {isCharging && <span className="text-[10px] text-lime-400 animate-pulse">⚡</span>}
+                    <span className="text-[10px] text-emerald-400 font-bold">{batteryLevel}%</span>
+                </div>
             </div>
 
             {/* 4 Apple Circles Grid */}

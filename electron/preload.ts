@@ -7,7 +7,7 @@ const electronAPI = {
         minimize: () => ipcRenderer.send('window:minimize'),
         hide: () => ipcRenderer.send('window:hide'),
         close: () => ipcRenderer.send('window:close'),
-        setMode: (mode: 'compact' | 'normal' | 'expanded') =>
+        setMode: (mode: 'compact' | 'normal' | 'expanded' | 'canvas') =>
             ipcRenderer.send('window:setMode', mode),
         setAlwaysOnTop: (flag: boolean) =>
             ipcRenderer.send('window:setAlwaysOnTop', flag),
@@ -80,8 +80,45 @@ const electronAPI = {
             ipcRenderer.invoke('goals:set', type, target),
     },
 
+    // LeetCode Integration
+    leetcode: {
+        getProfile: (username?: string) => ipcRenderer.invoke('leetcode:getProfile', username),
+        getDaily: () => ipcRenderer.invoke('leetcode:getDaily'),
+    },
+
+    // ChatGPT Integration
+    chatgpt: {
+        getConfig: () => ipcRenderer.invoke('chatgpt:getConfig'),
+        saveConfig: (config: { apiKey?: string; accountId?: string; model?: string }) =>
+            ipcRenderer.invoke('chatgpt:saveConfig', config),
+        verifyKey: (apiKey: string) => ipcRenderer.invoke('chatgpt:verifyKey', apiKey),
+        ask: (params: { prompt: string; model?: string }) =>
+            ipcRenderer.invoke('chatgpt:ask', params),
+        openApp: (prompt?: string) => ipcRenderer.invoke('chatgpt:openApp', prompt),
+        openDesktopWeb: (prompt?: string) => ipcRenderer.invoke('chatgpt:openDesktopWeb', prompt),
+        isAppInstalled: () => ipcRenderer.invoke('chatgpt:isAppInstalled'),
+    },
+
+    // Desktop Widgets system
+    widgets: {
+        getActive: () => ipcRenderer.invoke('widgets:getActive'),
+        toggle: (widgetId: string) => ipcRenderer.invoke('widgets:toggle', widgetId),
+        open: (widgetId: string) => ipcRenderer.invoke('widgets:open', widgetId),
+        close: (widgetId: string) => ipcRenderer.invoke('widgets:close', widgetId),
+        closeCurrent: () => ipcRenderer.send('widgets:closeCurrent'),
+        openManager: (tab?: string) => ipcRenderer.send('widgets:openManager', tab),
+        openSettings: () => ipcRenderer.send('widgets:openSettings'),
+        launchFocus: () => ipcRenderer.invoke('widgets:launchFocus'),
+        launchEssentials: () => ipcRenderer.invoke('widgets:launchEssentials'),
+        launchKevTech: () => ipcRenderer.invoke('widgets:launchKevTech'),
+        launchMacBook: () => ipcRenderer.invoke('widgets:launchMacBook'),
+        closeAll: () => ipcRenderer.invoke('widgets:closeAll'),
+    },
+
     // Shell
     openExternal: (url: string) => ipcRenderer.send('shell:openExternal', url),
+    openTerminal: () => ipcRenderer.send('shell:openTerminal'),
+    launchApp: (appKey: string) => ipcRenderer.send('shell:launchApp', appKey),
 
     // Event listeners (main → renderer)
     on: (
@@ -96,6 +133,8 @@ const electronAPI = {
             'tray:startFocus',
             'tray:addTask',
             'tray:settings',
+            'widgets:activeChanged',
+            'manager:setTab',
         ]
         if (validChannels.includes(channel)) {
             ipcRenderer.on(channel, (_event, ...args) => callback(...args))

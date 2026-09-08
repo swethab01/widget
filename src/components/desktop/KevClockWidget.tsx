@@ -6,43 +6,70 @@ interface KevClockWidgetProps {
 
 export function KevClockWidget({ className = '' }: KevClockWidgetProps) {
     const [now, setNow] = useState(new Date())
+    const [is24Hour, setIs24Hour] = useState(false)
 
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 1000)
         return () => clearInterval(timer)
     }, [])
 
-    const hours = String(now.getHours()).padStart(2, '0')
+    let hours: string
+    if (is24Hour) {
+        hours = String(now.getHours()).padStart(2, '0')
+    } else {
+        const h = now.getHours() % 12 || 12
+        hours = String(h)
+    }
     const minutes = String(now.getMinutes()).padStart(2, '0')
 
-    // Generate 60 small tick marks around the perimeter
+    // 48 precise Apple Watch perimeter tick marks
     const ticks = Array.from({ length: 48 })
 
     return (
         <div
-            className={`w-36 h-36 bg-white text-neutral-900 rounded-[24px] p-3 shadow-2xl relative overflow-hidden flex flex-col items-center justify-center select-none ${className}`}
+            onClick={() => setIs24Hour((prev) => !prev)}
+            title="Click to toggle 12h / 24h format"
+            className={`w-40 h-40 rounded-[28px] relative overflow-hidden flex flex-col items-center justify-center select-none cursor-pointer transition-transform hover:scale-[1.01] ${className}`}
+            style={{
+                background: 'rgba(255,255,255,0.92)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.6) inset',
+            }}
         >
-            {/* Outer Perimeter Tick Marks */}
-            <div className="absolute inset-1.5 border border-neutral-200/80 rounded-[20px] pointer-events-none">
+            {/* Subtle top shine */}
+            <div className="absolute inset-x-0 top-0 h-px bg-white/80 pointer-events-none" />
+
+            {/* Outer Perimeter Tick Track */}
+            <div className="absolute inset-2 rounded-[22px] pointer-events-none">
                 {ticks.map((_, i) => (
                     <div
                         key={i}
-                        className="absolute w-0.5 h-1.5 bg-neutral-300 rounded-full"
+                        className="absolute w-[1.5px] rounded-full"
                         style={{
+                            height: i % 4 === 0 ? '6px' : '3.5px',
+                            backgroundColor: i % 4 === 0 ? '#6b7280' : '#d1d5db',
                             top: '50%',
                             left: '50%',
-                            transform: `rotate(${i * 7.5}deg) translateY(-60px)`,
+                            transform: `rotate(${i * 7.5}deg) translateY(-67px)`,
                             transformOrigin: 'center center',
-                            opacity: i % 4 === 0 ? 0.9 : 0.4,
+                            opacity: i % 4 === 0 ? 0.9 : 0.5,
                         }}
                     />
                 ))}
             </div>
 
-            {/* Time Display */}
+            {/* Time Display — bold, dark, highly visible */}
             <div className="relative z-10 flex flex-col items-center justify-center">
-                <span className="text-4xl font-extrabold tracking-tight font-sans text-black leading-none">
+                <span
+                    className="text-[46px] font-black tracking-tighter leading-none select-none"
+                    style={{ color: '#111827', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+                >
                     {hours}:{minutes}
+                </span>
+                {/* AM/PM indicator */}
+                <span className="text-[10px] font-bold text-gray-400 tracking-widest mt-0.5">
+                    {now.getHours() >= 12 ? 'PM' : 'AM'}
                 </span>
             </div>
         </div>

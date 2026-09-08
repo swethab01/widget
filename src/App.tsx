@@ -6,9 +6,23 @@ import { SettingsPage } from './pages/Settings'
 import { Scratchpad } from './pages/Scratchpad'
 import { CommandPalette } from './components/CommandPalette'
 import { MacDesktopCanvas } from './components/desktop/MacDesktopCanvas'
+import { DesktopWidgetRenderer } from './components/desktop/DesktopWidgetRenderer'
+import { WidgetHub } from './components/desktop/WidgetHub'
 import type { Task, WidgetMode, DesktopWallpaper } from './types'
 
 export default function App() {
+  // If window was spawned as an individual floating desktop widget
+  const urlParams = new URLSearchParams(window.location.search)
+  const widgetId = urlParams.get('widget')
+  if (widgetId) {
+    return <DesktopWidgetRenderer widgetId={widgetId} />
+  }
+
+  // If opened as Widget Hub Manager
+  const isManager = urlParams.get('manager') === 'true'
+  if (isManager) {
+    return <WidgetHub />
+  }
   const [page, setPage] = useState('dashboard')
   const [mode, setMode] = useState<WidgetMode>('canvas')
   const [wallpaper, setWallpaper] = useState<DesktopWallpaper>('spiderman')
@@ -140,7 +154,13 @@ export default function App() {
       />
 
       <div className="flex-1 overflow-hidden z-10">
-        {page === 'dashboard' && <Dashboard onTriggerAddTask={addTaskTrigger} mode={mode} />}
+        {page === 'dashboard' && (
+          <Dashboard
+            onTriggerAddTask={addTaskTrigger}
+            mode={mode}
+            onSwitchToCanvas={() => handleModeChange('canvas')}
+          />
+        )}
         {page === 'scratchpad' && <Scratchpad />}
         {page === 'analytics' && <Analytics />}
         {page === 'settings' && <SettingsPage />}

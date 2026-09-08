@@ -132,23 +132,24 @@ function seedDefaultSettings() {
     const defaults: Record<string, string> = {
         screenTimeTracking: 'true',
         githubIntegration: 'false',
-        leetcodeIntegration: 'false',
+        leetcodeIntegration: 'true',
+        leetcode_username: 's4njay',
         gmailIntegration: 'false',
         calendarIntegration: 'false',
         aiAnalysis: 'false',
         theme: 'dark',
         widgetMode: 'normal',
         alwaysOnTop: 'false',
-        startWithWindows: 'false',
+        startWithWindows: 'true',
         dailyCodingGoalMinutes: '120',
         dailyFocusTarget: '4',
         entertainmentLimitMinutes: '60',
         focusDuration: '25',
-        username: 'Developer',
+        username: 'sanjay',
         notificationsEnabled: 'true',
     }
 
-    const insert = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)')
+    const insert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
     const insertMany = db.transaction((entries: [string, string][]) => {
         for (const [k, v] of entries) insert.run(k, v)
     })

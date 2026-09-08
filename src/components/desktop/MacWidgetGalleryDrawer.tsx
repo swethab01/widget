@@ -93,6 +93,14 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
         description: 'Vintage photo card with red gradient and sweet recipe aesthetic.',
     },
     {
+        id: 'kev-appstack',
+        name: 'macOS App Stack Widget',
+        category: 'utilities',
+        icon: '📱',
+        size: 'Small',
+        description: 'macOS Sonoma-style 4×3 app icon grid. Quick launcher for your favourite apps.',
+    },
+    {
         id: 'leetcode',
         name: 'LeetCode Daily & Search',
         category: 'developer',
@@ -146,7 +154,15 @@ export const WIDGET_CATALOG: WidgetCatalogItem[] = [
         category: 'developer',
         icon: '🎯',
         size: 'Medium',
-        description: 'Progress bars for LeetCode, GitHub commits, Focus hours, and Tasks.',
+        description: 'Daily habit streaks, 7-day heatmaps, and progress bars for LeetCode, GitHub, and Tasks.',
+    },
+    {
+        id: 'screentime',
+        name: 'Laptop Screen Time & Apps',
+        category: 'developer',
+        icon: '⏱',
+        size: 'Medium',
+        description: 'Real-time laptop screen time, category stacked bar, and complete list of apps used today with exact timings.',
     },
     {
         id: 'battery',
@@ -212,6 +228,7 @@ interface MacWidgetGalleryDrawerProps {
     activeWidgetIds: string[]
     onToggleWidget: (widgetId: string) => void
     onResetLayout: () => void
+    onClearAll?: () => void
 }
 
 export function MacWidgetGalleryDrawer({
@@ -220,6 +237,7 @@ export function MacWidgetGalleryDrawer({
     activeWidgetIds,
     onToggleWidget,
     onResetLayout,
+    onClearAll,
 }: MacWidgetGalleryDrawerProps) {
     const [selectedCategory, setSelectedCategory] = useState<WidgetCategory>('all')
     const [searchQuery, setSearchQuery] = useState('')
@@ -247,23 +265,32 @@ export function MacWidgetGalleryDrawer({
                         </div>
                         <div>
                             <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-                                macOS Widget Gallery
+                                Desktop Widget Catalog
                                 <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-white/10 text-white/70">
                                     {activeWidgetIds.length} on Screen
                                 </span>
                             </h2>
                             <p className="text-xs text-white/50">
-                                Pick widgets to place on your laptop screen. Drag them anywhere to arrange.
+                                Pick widgets to place directly on your desktop wallpaper. Drag to position them anywhere.
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {onClearAll && (
+                            <button
+                                onClick={onClearAll}
+                                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/30 text-rose-300 text-xs font-medium transition-colors cursor-pointer border border-rose-500/30"
+                                title="Remove all widgets from screen"
+                            >
+                                🧹 Clear All
+                            </button>
+                        )}
                         <button
                             onClick={onResetLayout}
                             className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/15 text-white/80 hover:text-white text-xs font-medium transition-colors cursor-pointer border border-white/10"
                         >
-                            Reset Default Layout
+                            Reset Clean Set
                         </button>
                         <button
                             onClick={onClose}

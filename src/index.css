@@ -13,17 +13,23 @@
 
   html, body, #root {
     height: 100%;
-    overflow: hidden;
-    user-select: none;
+    /* overflow: hidden removed — was blocking Widget Hub scroll.
+       Desktop canvas clips itself; other pages need to scroll. */
+    background-color: transparent !important;
   }
 
+
   body {
-    background-color: #0b0d13;
+    background-color: transparent !important;
     color: #f1f3f9;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
     margin: 0;
     padding: 0;
     letter-spacing: -0.011em;
+  }
+
+  button, input, textarea, select, a, [role="button"] {
+    -webkit-app-region: no-drag !important;
   }
 
   /* macOS Scrollbar styling */
@@ -74,15 +80,22 @@
     -webkit-backdrop-filter: blur(40px) saturate(190%);
   }
 
-  /* macOS Widget Tile Foundation */
+  /* macOS & iOS Dark Widget Tile Foundation - High Contrast & Opaque so it NEVER merges with wallpapers */
   .mac-widget-tile {
     position: relative;
-    background: rgba(255, 255, 255, 0.04);
-    backdrop-filter: blur(30px) saturate(180%);
-    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    background: linear-gradient(175deg, rgba(28, 28, 32, 0.97) 0%, rgba(18, 18, 22, 0.99) 100%);
+    backdrop-filter: blur(40px) saturate(200%);
+    -webkit-backdrop-filter: blur(40px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.75), 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.18);
+    border-radius: 24px;
+    color: #ffffff;
+  }
+
+  .mac-widget-card {
+    background: rgba(36, 36, 42, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
+    border-radius: 16px;
   }
 
   /* macOS Segmented Pill */

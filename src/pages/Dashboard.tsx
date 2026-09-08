@@ -24,9 +24,10 @@ const EMPTY_SCORE: DailyScore = {
 interface DashboardProps {
     onTriggerAddTask?: boolean
     mode?: WidgetMode
+    onSwitchToCanvas?: () => void
 }
 
-export function Dashboard({ onTriggerAddTask, mode = 'normal' }: DashboardProps) {
+export function Dashboard({ onTriggerAddTask, mode = 'normal', onSwitchToCanvas }: DashboardProps) {
     const tasks = useTasks()
     const focus = useFocus()
     const screenTime = useScreenTime()
@@ -109,6 +110,28 @@ export function Dashboard({ onTriggerAddTask, mode = 'normal' }: DashboardProps)
             ) : (
                 /* Sleek Single Column Layout for Normal Mode (440px width) */
                 <div className="space-y-3 max-w-md mx-auto">
+                    {onSwitchToCanvas && (
+                        <div
+                            onClick={onSwitchToCanvas}
+                            className="p-3 rounded-2xl bg-gradient-to-r from-blue-600/25 via-purple-600/20 to-blue-600/15 border border-blue-500/40 flex items-center justify-between cursor-pointer hover:border-blue-400 hover:from-blue-600/35 transition-all shadow-lg group select-none"
+                        >
+                            <div className="flex items-center gap-2.5">
+                                <span className="text-xl">🖥️</span>
+                                <div>
+                                    <div className="text-xs font-bold text-white group-hover:text-blue-200 transition-colors">
+                                        Desktop Wallpaper Canvas
+                                    </div>
+                                    <div className="text-[10px] text-white/60">
+                                        Pick & place individual widgets on wallpaper
+                                    </div>
+                                </div>
+                            </div>
+                            <span className="text-xs px-2.5 py-1 rounded-full bg-blue-600 text-white font-semibold group-hover:bg-blue-500 shadow transition-colors">
+                                Open ➔
+                            </span>
+                        </div>
+                    )}
+
                     {/* Real-time Flow Guardian HUD */}
                     <FlowGuardianHUD
                         onStartFocus={handleStartFocusFromHUD}

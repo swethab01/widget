@@ -34,6 +34,8 @@ export default {
                 'pulse-slow': 'pulse 3s ease-in-out infinite',
                 'fade-in': 'fadeIn 0.2s ease-out',
                 'slide-up': 'slideUp 0.25s ease-out',
+                'widget-wiggle': 'widgetWiggle 0.5s ease-in-out infinite',
+                'vinyl-spin': 'vinylSpin 3s linear infinite',
             },
             keyframes: {
                 fadeIn: {
@@ -43,6 +45,14 @@ export default {
                 slideUp: {
                     '0%': { opacity: '0', transform: 'translateY(8px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
+                },
+                widgetWiggle: {
+                    '0%, 100%': { transform: 'rotate(-0.5deg)' },
+                    '50%': { transform: 'rotate(0.5deg)' },
+                },
+                vinylSpin: {
+                    '0%': { transform: 'rotate(0deg)' },
+                    '100%': { transform: 'rotate(360deg)' },
                 },
             },
         },

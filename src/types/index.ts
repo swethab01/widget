@@ -199,9 +199,95 @@ export interface ElectronAPI {
         getAll: () => Promise<Goal[]>
         set: (type: string, target: number) => Promise<{ success: boolean }>
     }
+    leetcode: {
+        getProfile: (username?: string) => Promise<{
+            success: boolean
+            data?: LeetCodeProfileData
+            error?: string
+            message?: string
+        }>
+        getDaily: () => Promise<{
+            success: boolean
+            data?: LeetCodeDailyQuestion
+            error?: string
+        }>
+    }
+    chatgpt: {
+        getConfig: () => Promise<ChatGPTConfig>
+        saveConfig: (config: { apiKey?: string; accountId?: string; model?: string }) => Promise<{ success: boolean }>
+        verifyKey: (apiKey: string) => Promise<{ valid: boolean; error?: string }>
+        ask: (params: { prompt: string; model?: string }) => Promise<{
+            success: boolean
+            text?: string
+            model?: string
+            error?: string
+            message?: string
+        }>
+        openApp: (prompt?: string) => Promise<{ success: boolean; copied?: boolean }>
+        openDesktopWeb: (prompt?: string) => Promise<{ success: boolean }>
+        isAppInstalled: () => Promise<boolean>
+    }
+    widgets: {
+        getActive: () => Promise<string[]>
+        toggle: (widgetId: string) => Promise<{ active: boolean }>
+        open: (widgetId: string) => Promise<{ success: boolean }>
+        close: (widgetId: string) => Promise<{ success: boolean }>
+        closeCurrent: () => void
+        openManager: (tab?: string) => void
+        openSettings?: () => void
+        launchFocus?: () => Promise<void>
+        launchEssentials: () => Promise<void>
+        launchKevTech: () => Promise<void>
+        launchMacBook?: () => Promise<void>
+        closeAll: () => Promise<void>
+    }
     openExternal: (url: string) => void
+    openTerminal?: () => void
+    launchApp?: (appKey: string) => void
     on: (channel: string, callback: (...args: unknown[]) => void) => void
     off: (channel: string, callback: (...args: unknown[]) => void) => void
+}
+
+export interface LeetCodeProfileData {
+    username: string
+    realName?: string
+    avatar?: string
+    ranking?: number
+    streak: number
+    maxStreak?: number
+    totalActiveDays: number
+    solved: {
+        all: number
+        easy: number
+        medium: number
+        hard: number
+    }
+    allQuestionsCount?: {
+        all: number
+        easy: number
+        medium: number
+        hard: number
+    }
+    submissionCalendar?: Record<string, number>
+    daily?: LeetCodeDailyQuestion
+}
+
+export interface LeetCodeDailyQuestion {
+    id: string
+    title: string
+    slug: string
+    difficulty: 'Easy' | 'Medium' | 'Hard'
+    link: string
+    tags: string[]
+    acceptance: string
+}
+
+export interface ChatGPTConfig {
+    accountId: string | null
+    hasKey: boolean
+    maskedKey: string
+    model: string
+    isAppInstalled?: boolean
 }
 
 declare global {

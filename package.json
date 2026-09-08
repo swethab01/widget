@@ -5,14 +5,14 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "concurrently -k \"vite\" \"electron-wait-vite\"",
+    "dev:electron": "npm run electron:dev",
     "build": "tsc -p tsconfig.node.json && vite build",
     "preview": "vite preview",
     "electron:dev": "cross-env NODE_ENV=development concurrently -k -p \"[{name}]\" -n \"VITE,ELECTRON\" -c \"yellow,cyan\" \"vite\" \"nodemon --watch dist-electron --exec electron .\"",
     "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
-    "better-sqlite3": "^9.4.3",
+    "better-sqlite3": "^11.8.1",
     "electron-store": "^8.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -40,12 +40,24 @@
   "build": {
     "appId": "com.devpulse.app",
     "productName": "DevPulse",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "public/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "public/icon.ico",
+        "to": "icon.ico"
+      },
+      {
+        "from": "public/icon.png",
+        "to": "icon.png"
+      }
     ],
     "win": {
       "target": "nsis",

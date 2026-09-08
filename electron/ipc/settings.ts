@@ -15,6 +15,11 @@ export function getSetting(key: string, fallback = ''): string {
     return row?.value ?? fallback
 }
 
+export function saveSetting(key: string, value: string) {
+    getDB().prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value)
+    onSettingChange?.(key, value)
+}
+
 export function registerSettingsIPC() {
     const db = getDB()
 

@@ -21,7 +21,17 @@ export function isFocusActive(): boolean {
     return Boolean(activeSession && !activeSession.paused)
 }
 
-export function registerFocusIPC(win: BrowserWindow) {
+function broadcastToWindows(channel: string, payload: unknown) {
+    for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+            try {
+                win.webContents.send(channel, payload)
+            } catch {}
+        }
+    }
+}
+
+export function registerFocusIPC(_win?: BrowserWindow) {
     const db = getDB()
 
     ipcMain.handle('focus:start', (_e, taskId: number | null, minutes: number) => {
@@ -49,7 +59,7 @@ export function registerFocusIPC(win: BrowserWindow) {
             sessionId: result.lastInsertRowid as number,
         }
 
-        startTick(win)
+        startTick()
         return { success: true, session: activeSession }
     })
 
@@ -63,7 +73,7 @@ export function registerFocusIPC(win: BrowserWindow) {
     ipcMain.handle('focus:resume', () => {
         if (!activeSession) return { success: false }
         activeSession.paused = false
-        startTick(win)
+        startTick()
         return { success: true }
     })
 
@@ -96,13 +106,13 @@ export function registerFocusIPC(win: BrowserWindow) {
     })
 }
 
-function startTick(win: BrowserWindow) {
+function startTick() {
     tickInterval = setInterval(() => {
         if (!activeSession || activeSession.paused) return
 
         activeSession.remainingSeconds -= 1
 
-        win.webContents.send('focus:tick', {
+        broadcastToWindows('focus:tick', {
             remainingSeconds: activeSession.remainingSeconds,
             durationMinutes: activeSession.durationMinutes,
             taskTitle: activeSession.taskTitle,
@@ -118,7 +128,7 @@ function startTick(win: BrowserWindow) {
         WHERE id = ?
       `).run(activeSession.sessionId)
             const title = activeSession.taskTitle
-            win.webContents.send('focus:complete', { taskTitle: title })
+            broadcastToWindows('focus:complete', { taskTitle: title })
             notify('Focus session complete', title ? `Finished: ${title}` : 'Nice work. Take a short break.')
             activeSession = null
             recalculateScore()
