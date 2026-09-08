@@ -31,6 +31,7 @@ export function initDatabase() {
     createSchema()
     seedDefaultSettings()
     seedDefaultGoals()
+    seedDefaultLeetCodeProblems()
 }
 
 function createSchema() {
@@ -103,11 +104,25 @@ function createSchema() {
       updated_at TEXT DEFAULT (datetime('now','localtime'))
     );
 
+    CREATE TABLE IF NOT EXISTS leetcode_problems (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      frontend_id   TEXT,
+      title         TEXT NOT NULL,
+      title_slug    TEXT,
+      difficulty    TEXT CHECK(difficulty IN ('Easy','Medium','Hard')) DEFAULT 'Medium',
+      category      TEXT DEFAULT 'General',
+      url           TEXT NOT NULL,
+      completed     INTEGER DEFAULT 0,
+      completed_at  TEXT,
+      created_at    TEXT DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at);
     CREATE INDEX IF NOT EXISTS idx_app_usage_date ON app_usage(date);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_app_usage_app_date ON app_usage(app_name, date);
     CREATE INDEX IF NOT EXISTS idx_focus_started ON focus_sessions(started_at);
+    CREATE INDEX IF NOT EXISTS idx_leetcode_completed ON leetcode_problems(completed);
   `)
 
     db.prepare(`
@@ -125,6 +140,56 @@ function migrateSchema() {
         }
     } catch {
         // ignore
+    }
+}
+
+interface SeedLeetCodeProblem {
+    frontend_id: string
+    title: string
+    title_slug: string
+    difficulty: 'Easy' | 'Medium' | 'Hard'
+    category: string
+    url: string
+}
+
+const DEFAULT_LEETCODE_PROBLEMS: SeedLeetCodeProblem[] = [
+    { frontend_id: '1', title: 'Two Sum', title_slug: 'two-sum', difficulty: 'Easy', category: 'Arrays & Hashing', url: 'https://leetcode.com/problems/two-sum/' },
+    { frontend_id: '20', title: 'Valid Parentheses', title_slug: 'valid-parentheses', difficulty: 'Easy', category: 'Stack', url: 'https://leetcode.com/problems/valid-parentheses/' },
+    { frontend_id: '21', title: 'Merge Two Sorted Lists', title_slug: 'merge-two-sorted-lists', difficulty: 'Easy', category: 'Linked List', url: 'https://leetcode.com/problems/merge-two-sorted-lists/' },
+    { frontend_id: '121', title: 'Best Time to Buy and Sell Stock', title_slug: 'best-time-to-buy-and-sell-stock', difficulty: 'Easy', category: 'Sliding Window', url: 'https://leetcode.com/problems/best-time-to-buy-and-sell-stock/' },
+    { frontend_id: '125', title: 'Valid Palindrome', title_slug: 'valid-palindrome', difficulty: 'Easy', category: 'Two Pointers', url: 'https://leetcode.com/problems/valid-palindrome/' },
+    { frontend_id: '226', title: 'Invert Binary Tree', title_slug: 'invert-binary-tree', difficulty: 'Easy', category: 'Trees', url: 'https://leetcode.com/problems/invert-binary-tree/' },
+    { frontend_id: '242', title: 'Valid Anagram', title_slug: 'valid-anagram', difficulty: 'Easy', category: 'Arrays & Hashing', url: 'https://leetcode.com/problems/valid-anagram/' },
+    { frontend_id: '704', title: 'Binary Search', title_slug: 'binary-search', difficulty: 'Easy', category: 'Binary Search', url: 'https://leetcode.com/problems/binary-search/' },
+    { frontend_id: '3', title: 'Longest Substring Without Repeating Characters', title_slug: 'longest-substring-without-repeating-characters', difficulty: 'Medium', category: 'Sliding Window', url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/' },
+    { frontend_id: '11', title: 'Container With Most Water', title_slug: 'container-with-most-water', difficulty: 'Medium', category: 'Two Pointers', url: 'https://leetcode.com/problems/container-with-most-water/' },
+    { frontend_id: '15', title: '3Sum', title_slug: '3sum', difficulty: 'Medium', category: 'Two Pointers', url: 'https://leetcode.com/problems/3sum/' },
+    { frontend_id: '33', title: 'Search in Rotated Sorted Array', title_slug: 'search-in-rotated-sorted-array', difficulty: 'Medium', category: 'Binary Search', url: 'https://leetcode.com/problems/search-in-rotated-sorted-array/' },
+    { frontend_id: '49', title: 'Group Anagrams', title_slug: 'group-anagrams', difficulty: 'Medium', category: 'Arrays & Hashing', url: 'https://leetcode.com/problems/group-anagrams/' },
+    { frontend_id: '53', title: 'Maximum Subarray', title_slug: 'maximum-subarray', difficulty: 'Medium', category: 'Dynamic Programming', url: 'https://leetcode.com/problems/maximum-subarray/' },
+    { frontend_id: '102', title: 'Binary Tree Level Order Traversal', title_slug: 'binary-tree-level-order-traversal', difficulty: 'Medium', category: 'Trees', url: 'https://leetcode.com/problems/binary-tree-level-order-traversal/' },
+    { frontend_id: '128', title: 'Longest Consecutive Sequence', title_slug: 'longest-consecutive-sequence', difficulty: 'Medium', category: 'Arrays & Hashing', url: 'https://leetcode.com/problems/longest-consecutive-sequence/' },
+    { frontend_id: '198', title: 'House Robber', title_slug: 'house-robber', difficulty: 'Medium', category: 'Dynamic Programming', url: 'https://leetcode.com/problems/house-robber/' },
+    { frontend_id: '200', title: 'Number of Islands', title_slug: 'number-of-islands', difficulty: 'Medium', category: 'Graphs', url: 'https://leetcode.com/problems/number-of-islands/' },
+    { frontend_id: '300', title: 'Longest Increasing Subsequence', title_slug: 'longest-increasing-subsequence', difficulty: 'Medium', category: 'Dynamic Programming', url: 'https://leetcode.com/problems/longest-increasing-subsequence/' },
+    { frontend_id: '42', title: 'Trapping Rain Water', title_slug: 'trapping-rain-water', difficulty: 'Hard', category: 'Two Pointers', url: 'https://leetcode.com/problems/trapping-rain-water/' },
+]
+
+function seedDefaultLeetCodeProblems() {
+    try {
+        const countRow = db.prepare('SELECT COUNT(*) as count FROM leetcode_problems').get() as { count: number }
+        if (countRow && countRow.count === 0) {
+            const insert = db.prepare(`
+                INSERT INTO leetcode_problems (frontend_id, title, title_slug, difficulty, category, url, completed)
+                VALUES (@frontend_id, @title, @title_slug, @difficulty, @category, @url, 0)
+            `)
+            const insertMany = db.transaction((problems: SeedLeetCodeProblem[]) => {
+                for (const p of problems) insert.run(p)
+            })
+            insertMany(DEFAULT_LEETCODE_PROBLEMS)
+        }
+    } catch (e) {
+        console.error('Error seeding leetcode problems:', e)
     }
 }
 
@@ -183,9 +248,10 @@ function createFallbackDB(storageFilePath: string) {
         app_usage: [] as any[],
         daily_scores: {} as Record<string, any>,
         goals: [] as any[],
+        leetcode_problems: [] as any[],
         settings: {} as Record<string, string>,
         scratchpad: { id: 1, content: '# Developer Scratchpad\n- [ ] Quick thought\n- [ ] Snippet / Command', updated_at: new Date().toISOString() },
-        nextId: { tasks: 1, focus_sessions: 1, goals: 1 },
+        nextId: { tasks: 1, focus_sessions: 1, goals: 1, leetcode_problems: 1 },
     }
 
     if (fs.existsSync(storageFilePath)) {
@@ -400,6 +466,43 @@ function createFallbackDB(storageFilePath: string) {
                         return { lastInsertRowid: 1, changes: 1 }
                     }
 
+                    // LeetCode problems
+                    if (cleanSql.includes('INSERT INTO leetcode_problems')) {
+                        const row = arg0 || {}
+                        const id = (state.nextId as any).leetcode_problems = ((state.nextId as any).leetcode_problems || 1) + 1
+                        state.leetcode_problems = state.leetcode_problems || []
+                        state.leetcode_problems.unshift({
+                            id,
+                            frontend_id: row.frontend_id || '',
+                            title: row.title || '',
+                            title_slug: row.title_slug || '',
+                            difficulty: row.difficulty || 'Medium',
+                            category: row.category || 'General',
+                            url: row.url || '',
+                            completed: 0,
+                            completed_at: null,
+                            created_at: nowStr(),
+                        })
+                        save()
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+                    if (cleanSql.includes('UPDATE leetcode_problems SET completed =')) {
+                        const id = args[1] !== undefined ? args[1] : (typeof arg0 === 'number' ? arg0 : args[0])
+                        const problem = (state.leetcode_problems || []).find((p) => p.id === id)
+                        if (problem) {
+                            problem.completed = problem.completed ? 0 : 1
+                            problem.completed_at = problem.completed ? nowStr() : null
+                            save()
+                        }
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+                    if (cleanSql.includes('DELETE FROM leetcode_problems WHERE id = ?')) {
+                        const id = args[0]
+                        state.leetcode_problems = (state.leetcode_problems || []).filter((p) => p.id !== id)
+                        save()
+                        return { lastInsertRowid: id, changes: 1 }
+                    }
+
                     return { lastInsertRowid: 0, changes: 0 }
                 },
 
@@ -538,6 +641,11 @@ function createFallbackDB(storageFilePath: string) {
                     // Goals
                     if (cleanSql.includes('FROM goals')) {
                         return state.goals
+                    }
+
+                    // LeetCode practice problems
+                    if (cleanSql.includes('FROM leetcode_problems')) {
+                        return state.leetcode_problems || []
                     }
 
                     // Settings

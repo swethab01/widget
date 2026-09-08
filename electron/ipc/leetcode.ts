@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getSetting, saveSetting } from './settings'
+import { getDB } from '../database'
 
 export interface LeetCodeProfileData {
     username: string
@@ -252,6 +253,81 @@ export function registerLeetCodeIPC() {
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err)
             return { success: false, error: 'NETWORK_ERROR', message }
+        }
+    })
+
+    // Problem Checklist: get all tracked problems
+    ipcMain.handle('leetcode:getProblems', () => {
+        try {
+            const db = getDB()
+            return db.prepare('SELECT * FROM leetcode_problems ORDER BY completed ASC, id ASC').all()
+        } catch (e: any) {
+            console.error('leetcode:getProblems error:', e)
+            return []
+        }
+    })
+
+    // Problem Checklist: toggle completion ("tick")
+    ipcMain.handle('leetcode:toggleProblem', (_e, id: number) => {
+        try {
+            const db = getDB()
+            const row = db.prepare('SELECT completed FROM leetcode_problems WHERE id = ?').get(id) as { completed: number } | undefined
+            if (!row) return { success: false, error: 'NOT_FOUND' }
+            const nextCompleted = row.completed ? 0 : 1
+            const completedAt = nextCompleted ? new Date().toISOString() : null
+            db.prepare('UPDATE leetcode_problems SET completed = ?, completed_at = ? WHERE id = ?').run(nextCompleted, completedAt, id)
+            return { success: true, completed: nextCompleted === 1 }
+        } catch (e: any) {
+            console.error('leetcode:toggleProblem error:', e)
+            return { success: false, error: e.message }
+        }
+    })
+
+    // Problem Checklist: add custom problem
+    ipcMain.handle('leetcode:addProblem', (_e, problem: {
+        frontend_id?: string
+        title: string
+        difficulty?: 'Easy' | 'Medium' | 'Hard'
+        category?: string
+        url?: string
+    }) => {
+        try {
+            const db = getDB()
+            const titleClean = (problem.title || '').trim()
+            if (!titleClean) return { success: false, error: 'Title required' }
+            const slug = titleClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+            let url = (problem.url || '').trim()
+            if (!url && slug) {
+                url = `https://leetcode.com/problems/${slug}/`
+            }
+            const res = db.prepare(`
+                INSERT INTO leetcode_problems (frontend_id, title, title_slug, difficulty, category, url, completed)
+                VALUES (@frontend_id, @title, @title_slug, @difficulty, @category, @url, 0)
+            `).run({
+                frontend_id: problem.frontend_id || '',
+                title: titleClean,
+                title_slug: slug,
+                difficulty: problem.difficulty || 'Medium',
+                category: problem.category || 'General',
+                url,
+            })
+            const created = db.prepare('SELECT * FROM leetcode_problems WHERE id = ?').get(res.lastInsertRowid)
+            return { success: true, data: created }
+        } catch (e: any) {
+            console.error('leetcode:addProblem error:', e)
+            return { success: false, error: e.message }
+        }
+    })
+
+    // Problem Checklist: delete problem
+    ipcMain.handle('leetcode:deleteProblem', (_e, id: number) => {
+        try {
+            const db = getDB()
+            db.prepare('DELETE FROM leetcode_problems WHERE id = ?').run(id)
+            return { success: true }
+        } catch (e: any) {
+            console.error('leetcode:deleteProblem error:', e)
+            return { success: false, error: e.message }
         }
     })
 }

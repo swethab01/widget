@@ -211,6 +211,16 @@ export interface ElectronAPI {
             data?: LeetCodeDailyQuestion
             error?: string
         }>
+        getProblems?: () => Promise<LeetCodeProblemItem[]>
+        toggleProblem?: (id: number) => Promise<{ success: boolean; completed?: boolean; error?: string }>
+        addProblem?: (problem: {
+            frontend_id?: string
+            title: string
+            difficulty?: 'Easy' | 'Medium' | 'Hard'
+            category?: string
+            url?: string
+        }) => Promise<{ success: boolean; data?: LeetCodeProblemItem; error?: string }>
+        deleteProblem?: (id: number) => Promise<{ success: boolean; error?: string }>
     }
     chatgpt: {
         getConfig: () => Promise<ChatGPTConfig>
@@ -280,6 +290,19 @@ export interface LeetCodeDailyQuestion {
     link: string
     tags: string[]
     acceptance: string
+}
+
+export interface LeetCodeProblemItem {
+    id: number
+    frontend_id?: string
+    title: string
+    title_slug?: string
+    difficulty: 'Easy' | 'Medium' | 'Hard'
+    category?: string
+    url: string
+    completed: number | boolean
+    completed_at?: string | null
+    created_at?: string
 }
 
 export interface ChatGPTConfig {

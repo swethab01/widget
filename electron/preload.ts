@@ -84,6 +84,16 @@ const electronAPI = {
     leetcode: {
         getProfile: (username?: string) => ipcRenderer.invoke('leetcode:getProfile', username),
         getDaily: () => ipcRenderer.invoke('leetcode:getDaily'),
+        getProblems: () => ipcRenderer.invoke('leetcode:getProblems'),
+        toggleProblem: (id: number) => ipcRenderer.invoke('leetcode:toggleProblem', id),
+        addProblem: (problem: {
+            frontend_id?: string
+            title: string
+            difficulty?: 'Easy' | 'Medium' | 'Hard'
+            category?: string
+            url?: string
+        }) => ipcRenderer.invoke('leetcode:addProblem', problem),
+        deleteProblem: (id: number) => ipcRenderer.invoke('leetcode:deleteProblem', id),
     },
 
     // ChatGPT Integration

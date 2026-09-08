@@ -428,6 +428,18 @@ export function setupMockElectronAPI(): void {
                     acceptance: '53.5%',
                 },
             }),
+            getProblems: async () => [
+                { id: 1, frontend_id: '1', title: 'Two Sum', title_slug: 'two-sum', difficulty: 'Easy' as const, category: 'Arrays', url: 'https://leetcode.com/problems/two-sum/', completed: 1 },
+                { id: 2, frontend_id: '20', title: 'Valid Parentheses', title_slug: 'valid-parentheses', difficulty: 'Easy' as const, category: 'Stack', url: 'https://leetcode.com/problems/valid-parentheses/', completed: 1 },
+                { id: 3, frontend_id: '3', title: 'Longest Substring Without Repeating Characters', title_slug: 'longest-substring', difficulty: 'Medium' as const, category: 'Sliding Window', url: 'https://leetcode.com/problems/longest-substring-without-repeating-characters/', completed: 0 },
+                { id: 4, frontend_id: '42', title: 'Trapping Rain Water', title_slug: 'trapping-rain-water', difficulty: 'Hard' as const, category: 'Two Pointers', url: 'https://leetcode.com/problems/trapping-rain-water/', completed: 0 },
+            ],
+            toggleProblem: async (id: number) => ({ success: true, completed: true }),
+            addProblem: async (p: any) => ({
+                success: true,
+                data: { id: Date.now(), ...p, completed: 0, url: p.url || `https://leetcode.com/problems/${p.title.toLowerCase().replace(/\s+/g, '-')}/` },
+            }),
+            deleteProblem: async (id: number) => ({ success: true }),
         },
 
         chatgpt: {
