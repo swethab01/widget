@@ -354,6 +354,55 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
         )
     }
 
+    if (widgetId === 'leetcode') {
+        return (
+            <div
+                className="w-full h-full flex items-center justify-center bg-transparent select-none relative p-0"
+                onContextMenu={(e) => {
+                    e.preventDefault()
+                    setShowQuickMenu((prev) => !prev)
+                }}
+            >
+                <LeetCodeWidget
+                    className="w-full h-full"
+                    onClose={handleClose}
+                />
+
+                {/* Quick Add / Remove Popover Menu on Right Click */}
+                {showQuickMenu && (
+                    <div
+                        className="absolute top-2 left-2 z-50 bg-[#16161a]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2.5 shadow-2xl text-xs text-white min-w-[190px]"
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    >
+                        <div className="flex items-center justify-between pb-1.5 border-b border-white/10 mb-1.5">
+                            <span className="font-bold text-[11px] text-white/90">LeetCode Options</span>
+                            <button
+                                onClick={() => setShowQuickMenu(false)}
+                                className="w-4 h-4 rounded-full bg-white/10 hover:bg-white/20 text-white/60 flex items-center justify-center text-[9px]"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <button
+                            onClick={handleOpenManager}
+                            className="w-full px-2 py-1.5 rounded-lg flex items-center gap-1.5 text-white/80 hover:text-white hover:bg-white/10 transition-colors text-left"
+                        >
+                            <span>🧩</span>
+                            <span>Widget Hub...</span>
+                        </button>
+                        <button
+                            onClick={handleClose}
+                            className="w-full px-2 py-1.5 rounded-lg flex items-center gap-1.5 text-rose-300 hover:text-white hover:bg-rose-500/30 transition-colors text-left"
+                        >
+                            <span>✕</span>
+                            <span>Close Widget</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     return (
         <div className="w-full h-full flex flex-col items-center justify-center bg-transparent select-none relative p-1">
             {/* Unified Sleek Widget Glass Wrapper */}

@@ -441,20 +441,13 @@ export function LeetCodeWidget({
         <div
             className={`mac-widget-tile p-4 w-full h-full select-none relative group transition-all duration-300 flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#141724]/95 via-[#0e1017]/95 to-[#0a0b10]/95 border border-white/[0.12] shadow-[0_25px_50px_rgba(0,0,0,0.85)] ${className}`}
         >
-            {/* ✕ Close button (only when explicitly provided) */}
-            {onClose && (
-                <button
-                    onClick={onClose}
-                    className="absolute top-3 right-3 w-6 h-6 rounded-full bg-rose-500/80 hover:bg-rose-500 text-white font-bold text-[11px] flex items-center justify-center shadow-lg cursor-pointer z-30 transition-all hover:scale-110 active:scale-95 border border-white/20"
-                    title="Close Widget"
-                >
-                    ✕
-                </button>
-            )}
-
             <div className="flex-1 flex flex-col min-h-0">
-                {/* 1. Sleek Modern Header */}
-                <div className="flex items-center justify-between mb-3 shrink-0">
+                {/* 1. Sleek Modern Header (Draggable on desktop) */}
+                <div
+                    className="flex items-center justify-between mb-3 shrink-0 cursor-grab active:cursor-grabbing"
+                    style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+                    title="Drag to move widget anywhere on desktop"
+                >
                     <div className="flex items-center gap-2">
                         {/* LeetCode Icon with ambient glow */}
                         <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#ffa116] to-[#e68a00] flex items-center justify-center text-xs font-black text-black shadow-[0_0_16px_rgba(255,161,22,0.4)]">
@@ -472,6 +465,7 @@ export function LeetCodeWidget({
                         {/* Connected User Pill */}
                         <button
                             onClick={() => openExternal(`https://leetcode.com/u/${profile?.username || 's4njay'}/`)}
+                            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                             className="flex items-center gap-1.5 text-[11px] font-semibold text-[#ffa116] bg-[#ffa116]/10 hover:bg-[#ffa116]/20 px-2.5 py-1 rounded-full border border-[#ffa116]/30 transition-all cursor-pointer shadow-sm ml-1"
                             title="Open Profile on LeetCode"
                         >
@@ -481,13 +475,18 @@ export function LeetCodeWidget({
                         </button>
                     </div>
 
-                    {/* Streak & Controls */}
-                    <div className="flex items-center gap-1.5">
+                    {/* Streak & Header Action Controls */}
+                    <div
+                        className="flex items-center gap-1.5"
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    >
+                        {/* Streak Badge */}
                         <span className="flex items-center gap-1 text-[11px] font-bold text-[#ffa116] bg-[#ffa116]/10 px-2.5 py-1 rounded-full border border-[#ffa116]/30 shadow-[0_0_10px_rgba(255,161,22,0.15)] font-mono">
                             <span>🔥</span>
                             <span>{profile?.streak ?? 46}d</span>
                         </span>
 
+                        {/* Refresh Button */}
                         <button
                             onClick={() => {
                                 loadData(profile?.username)
@@ -500,6 +499,7 @@ export function LeetCodeWidget({
                             <span className={isLoading ? 'animate-spin' : ''}>↻</span>
                         </button>
 
+                        {/* Settings Button */}
                         <button
                             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                             className={`w-7 h-7 rounded-xl border text-xs flex items-center justify-center cursor-pointer transition-all active:scale-90 ${
@@ -511,12 +511,26 @@ export function LeetCodeWidget({
                         >
                             ⚙
                         </button>
+
+                        {/* Close Widget Button (Instant & Visible) */}
+                        {onClose && (
+                            <button
+                                onClick={onClose}
+                                className="w-7 h-7 rounded-xl bg-rose-500/80 hover:bg-rose-600 text-white text-xs flex items-center justify-center cursor-pointer transition-all active:scale-90 border border-white/20 font-bold ml-0.5"
+                                title="Close Widget (Esc)"
+                            >
+                                ✕
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* Inline Connect Popover */}
                 {isSettingsOpen && (
-                    <div className="mb-3 p-3 rounded-2xl bg-[#121522] border border-[#ffa116]/40 shadow-[0_12px_36px_rgba(0,0,0,0.8)] text-xs z-20 animate-fade-in shrink-0">
+                    <div
+                        className="mb-3 p-3 rounded-2xl bg-[#121522] border border-[#ffa116]/40 shadow-[0_12px_36px_rgba(0,0,0,0.8)] text-xs z-20 animate-fade-in shrink-0"
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    >
                         <div className="flex items-center justify-between mb-2">
                             <span className="font-bold text-white flex items-center gap-1.5">
                                 <span className="text-[#ffa116]">⚡</span>
@@ -545,7 +559,10 @@ export function LeetCodeWidget({
                 )}
 
                 {/* 2. Apple / Linear Style Segmented Navigation */}
-                <div className="flex items-center gap-1 p-1 bg-[#10131d]/90 border border-white/[0.08] rounded-2xl mb-3 shrink-0 shadow-inner">
+                <div
+                    className="flex items-center gap-1 p-1 bg-[#10131d]/90 border border-white/[0.08] rounded-2xl mb-3 shrink-0 shadow-inner"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                >
                     <button
                         onClick={() => setActiveTab('gauge')}
                         className={`flex-1 py-1.5 px-2 text-[11px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
@@ -584,10 +601,13 @@ export function LeetCodeWidget({
                 </div>
 
                 {/* 3. TAB CONTENT VIEWS */}
-                <div className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-0.5">
+                <div
+                    className="flex-1 flex flex-col min-h-0"
+                    style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                >
                     {/* TAB 1: EXACT LEETCODE CIRCULAR ARC GAUGE */}
                     {activeTab === 'gauge' && (
-                        <div className="flex flex-col gap-2.5">
+                        <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-0.5">
                             <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-[#141724]/80 border border-white/[0.08] relative backdrop-blur-md">
                                 <div className="relative w-44 h-40 flex items-center justify-center">
                                     <svg className="w-44 h-40 transform rotate-[140deg]" viewBox="0 0 160 160">
@@ -750,7 +770,7 @@ export function LeetCodeWidget({
 
                     {/* TAB 2: EXACT LEETCODE 1-YEAR CONTRIBUTION HEATMAP */}
                     {activeTab === 'graph' && (
-                        <div className="flex flex-col gap-2.5">
+                        <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 pr-0.5">
                             <div className="p-3.5 rounded-2xl bg-[#141724]/80 border border-white/[0.08] backdrop-blur-md">
                                 <div className="flex items-center justify-between mb-2.5">
                                     <div className="text-xs font-semibold text-white/90">
@@ -861,7 +881,7 @@ export function LeetCodeWidget({
                     {/* TAB 3: PRACTICE PROBLEM CHECKLIST (Interactive with Ticks) */}
                     {activeTab === 'checklist' && (
                         <div className="flex-1 flex flex-col rounded-2xl bg-[#141724]/80 border border-white/[0.08] p-3 backdrop-blur-md min-h-0">
-                            {/* Progress Header */}
+                            {/* Pinned Progress Header */}
                             <div className="mb-2 shrink-0">
                                 <div className="flex items-center justify-between text-xs mb-1">
                                     <span className="font-bold text-white flex items-center gap-1.5">
@@ -883,7 +903,7 @@ export function LeetCodeWidget({
                                 </div>
                             </div>
 
-                            {/* Filter Chips & Add Action */}
+                            {/* Pinned Filter Chips & Add Action */}
                             <div className="flex items-center justify-between gap-1.5 mb-2 shrink-0">
                                 <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[10px]">
                                     <button
@@ -957,7 +977,7 @@ export function LeetCodeWidget({
                                 </button>
                             </div>
 
-                            {/* Inline Add Problem Form */}
+                            {/* Pinned Inline Add Problem Form */}
                             {isAddOpen && (
                                 <form onSubmit={handleAddProblem} className="mb-2 p-2.5 rounded-xl bg-[#181c2b] border border-[#ffa116]/40 text-xs flex flex-col gap-2 animate-fade-in shrink-0 shadow-lg">
                                     <div className="flex items-center justify-between text-[11px] font-bold text-white">
@@ -1020,7 +1040,7 @@ export function LeetCodeWidget({
                                 </form>
                             )}
 
-                            {/* Search in checklist */}
+                            {/* Pinned Search input in checklist */}
                             <div className="relative mb-2 shrink-0">
                                 <input
                                     type="text"
@@ -1039,7 +1059,7 @@ export function LeetCodeWidget({
                                 )}
                             </div>
 
-                            {/* Scrollable Problem Items List */}
+                            {/* Dedicated Scrollable Problem Items List (Controls Stay Anchored!) */}
                             <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-1.5 scrollbar-thin scrollbar-thumb-white/10 select-none min-h-0">
                                 {filteredProblems.length === 0 ? (
                                     <div className="text-center py-8 text-xs text-white/40 flex flex-col items-center gap-1">
@@ -1135,7 +1155,11 @@ export function LeetCodeWidget({
             </div>
 
             {/* 4. Quick Problem Search Bar at Bottom */}
-            <form onSubmit={handleSearch} className="relative mt-2.5 shrink-0">
+            <form
+                onSubmit={handleSearch}
+                className="relative mt-2.5 shrink-0"
+                style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            >
                 <input
                     type="text"
                     value={searchQuery}
