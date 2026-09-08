@@ -1,6 +1,9 @@
 {
   "name": "devpulse",
   "version": "1.0.0",
+  "description": "DevPulse — Pro Developer Desktop Widget Suite with LeetCode Tracker, Focus Timer, and Screen Time",
+  "author": "Sanjay <https://github.com/swethab01/widget>",
+  "homepage": "https://github.com/swethab01/widget",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {

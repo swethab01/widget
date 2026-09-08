@@ -70,16 +70,42 @@ export function LeetCodeWidget({
     className = '',
     onClose,
 }: LeetCodeWidgetProps) {
-    const [profile, setProfile] = useState<LeetCodeProfileData | null>(FALLBACK_PROFILE)
+    const [profile, setProfile] = useState<LeetCodeProfileData>(() => {
+        try {
+            const cached = localStorage.getItem('devpulse_leetcode_cached_profile')
+            if (cached) {
+                const parsed = JSON.parse(cached)
+                if (parsed && typeof parsed.solved?.all === 'number') {
+                    return parsed
+                }
+            }
+        } catch {}
+        return FALLBACK_PROFILE
+    })
     const [dailyQuestion, setDailyQuestion] = useState<LeetCodeDailyQuestion | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<'gauge' | 'graph' | 'checklist'>('gauge')
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-    const [usernameInput, setUsernameInput] = useState('s4njay')
+    const [usernameInput, setUsernameInput] = useState(() => {
+        try {
+            return localStorage.getItem('devpulse_leetcode_username') || 's4njay'
+        } catch {
+            return 's4njay'
+        }
+    })
     const [isSaving, setIsSaving] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
     const [isSolvedToday, setIsSolvedToday] = useState(false)
+
+    // Save profile to cache whenever it updates
+    useEffect(() => {
+        if (profile && profile.solved?.all) {
+            try {
+                localStorage.setItem('devpulse_leetcode_cached_profile', JSON.stringify(profile))
+            } catch {}
+        }
+    }, [profile])
 
     // Practice checklist states
     const [problems, setProblems] = useState<LeetCodeProblemItem[]>(STARTER_PROBLEMS)

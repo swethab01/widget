@@ -17,6 +17,19 @@ import { getPulseInsight } from './services/PulseEngine'
 
 const isDev = process.env.NODE_ENV === 'development'
 
+// Production single-instance lock to prevent SQLite file conflicts and duplicate instances
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+    app.quit()
+}
+
+process.on('uncaughtException', (err) => {
+    console.error('[DevPulse Main] Uncaught Exception:', err)
+})
+process.on('unhandledRejection', (reason) => {
+    console.error('[DevPulse Main] Unhandled Rejection:', reason)
+})
+
 let tray: Tray | null = null
 let screenTimeService: ScreenTimeService | null = null
 let managerWindow: BrowserWindow | null = null
@@ -810,6 +823,21 @@ app.whenReady().then(() => {
         // If first time with no widgets, open the Manager Hub so the user can pick
         openManagerWindow()
     }
+
+    app.on('second-instance', () => {
+        if (managerWindow && !managerWindow.isDestroyed()) {
+            if (managerWindow.isMinimized()) managerWindow.restore()
+            managerWindow.show()
+            managerWindow.focus()
+        } else if (openWidgetWindows.size > 0) {
+            const firstWin = openWidgetWindows.values().next().value
+            if (firstWin && !firstWin.isDestroyed()) {
+                firstWin.focus()
+            }
+        } else {
+            openManagerWindow()
+        }
+    })
 })
 
 app.on('window-all-closed', () => {

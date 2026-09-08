@@ -98,29 +98,35 @@ query questionOfToday {
 `
 
 async function fetchLeetCodeGraphQL(query: string, variables?: Record<string, unknown>): Promise<any> {
-    const res = await fetch(LEETCODE_GRAPHQL_ENDPOINT, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
-            'Referer': 'https://leetcode.com',
-        },
-        body: JSON.stringify({ query, variables }),
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
+    try {
+        const res = await fetch(LEETCODE_GRAPHQL_ENDPOINT, {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)',
+                'Referer': 'https://leetcode.com',
+            },
+            body: JSON.stringify({ query, variables }),
+        })
 
-    if (!res.ok) {
-        throw new Error(`LeetCode API returned HTTP ${res.status}`)
+        if (!res.ok) {
+            throw new Error(`LeetCode API returned HTTP ${res.status}`)
+        }
+
+        return await res.json()
+    } finally {
+        clearTimeout(timeout)
     }
-
-    return await res.json()
 }
 
 export function registerLeetCodeIPC() {
-    // Get live profile and daily problem
+    // Get live profile and daily problem (with offline cache fallback)
     ipcMain.handle('leetcode:getProfile', async (_e, rawUsername?: string) => {
+        const username = (rawUsername || getSetting('leetcode_username', 's4njay')).trim() || 's4njay'
         try {
-            const username = (rawUsername || getSetting('leetcode_username', 's4njay')).trim() || 's4njay'
-
             const json = await fetchLeetCodeGraphQL(USER_PROFILE_QUERY, { username })
 
             if (json.errors && (!json.data || !json.data.matchedUser)) {
@@ -213,10 +219,23 @@ export function registerLeetCodeIPC() {
                 daily: dailyObj,
             }
 
+            // Cache verified profile to settings for offline support
+            saveSetting('leetcode_cached_profile', JSON.stringify(profileData))
+
             return { success: true, data: profileData }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err)
-            console.error('LeetCode IPC error:', message)
+            console.warn('[LeetCode IPC] Network request failed, checking offline cache:', message)
+
+            // Production resilience: Return cached profile if available
+            try {
+                const cachedStr = getSetting('leetcode_cached_profile', '')
+                if (cachedStr) {
+                    const cached = JSON.parse(cachedStr)
+                    return { success: true, data: cached, isCached: true }
+                }
+            } catch {}
+
             return { success: false, error: 'NETWORK_ERROR', message }
         }
     })
