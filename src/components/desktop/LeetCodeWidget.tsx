@@ -721,7 +721,7 @@ export function LeetCodeWidget({
                                         <div className="w-full h-1 bg-[#00b8a3]/20 rounded-full mt-1.5 overflow-hidden">
                                             <div
                                                 className="h-full bg-[#00b8a3] rounded-full"
-                                                style={{ width: `${(easySolved / easyTotal) * 100}%` }}
+                                                style={{ width: `${Math.min(100, Math.max(0, (easySolved / (easyTotal || 1)) * 100))}%` }}
                                             />
                                         </div>
                                     </div>
@@ -734,7 +734,7 @@ export function LeetCodeWidget({
                                         <div className="w-full h-1 bg-[#ffc01e]/20 rounded-full mt-1.5 overflow-hidden">
                                             <div
                                                 className="h-full bg-[#ffc01e] rounded-full"
-                                                style={{ width: `${(medSolved / medTotal) * 100}%` }}
+                                                style={{ width: `${Math.min(100, Math.max(0, (medSolved / (medTotal || 1)) * 100))}%` }}
                                             />
                                         </div>
                                     </div>
@@ -747,7 +747,7 @@ export function LeetCodeWidget({
                                         <div className="w-full h-1 bg-[#ff375f]/20 rounded-full mt-1.5 overflow-hidden">
                                             <div
                                                 className="h-full bg-[#ff375f] rounded-full"
-                                                style={{ width: `${Math.max(2, (hardSolved / hardTotal) * 100)}%` }}
+                                                style={{ width: `${Math.min(100, Math.max(2, (hardSolved / (hardTotal || 1)) * 100))}%` }}
                                             />
                                         </div>
                                     </div>
