@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import { getDB } from '../database'
 import { localDate } from '../lib/dates'
 import { computeStreakDays, syncWeeklyGoals } from '../services/PulseEngine'
@@ -24,6 +24,16 @@ interface NewTask {
     est_minutes?: number
 }
 
+function broadcastTasksChanged() {
+    for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) {
+            try {
+                win.webContents.send('tasks:changed')
+            } catch {}
+        }
+    }
+}
+
 export function registerTaskIPC() {
     const db = getDB()
 
@@ -35,12 +45,13 @@ export function registerTaskIPC() {
         const today = localDate()
         return db.prepare(`
       SELECT * FROM tasks
-      WHERE date(created_at) = ? OR status = 'todo'
+      WHERE date(created_at) = ? OR date(completed_at) = ? OR status = 'todo'
       ORDER BY
+        CASE status WHEN 'todo' THEN 1 ELSE 2 END,
         CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
         est_minutes ASC,
         created_at DESC
-    `).all(today)
+    `).all(today, today)
     })
 
     ipcMain.handle('tasks:add', (_e, task: NewTask) => {
@@ -55,21 +66,28 @@ export function registerTaskIPC() {
             due_time: task.due_time || null,
             est_minutes: task.est_minutes || 25,
         })
-        return db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid)
+        const created = db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid)
+        broadcastTasksChanged()
+        return created
     })
 
     ipcMain.handle('tasks:update', (_e, id: number, patch: Partial<Task>) => {
-        const allowed = ['title', 'priority', 'category', 'due_time', 'est_minutes', 'status']
+        const allowed = ['title', 'priority', 'category', 'due_time', 'est_minutes', 'status', 'completed_at']
         const fields = Object.keys(patch).filter((k) => allowed.includes(k))
         if (fields.length === 0) return null
 
         const sets = fields.map((f) => `${f} = @${f}`).join(', ')
         db.prepare(`UPDATE tasks SET ${sets} WHERE id = @id`).run({ ...patch, id })
-        return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)
+        const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)
+        recalculateScore()
+        broadcastTasksChanged()
+        return updated
     })
 
     ipcMain.handle('tasks:delete', (_e, id: number) => {
         db.prepare('DELETE FROM tasks WHERE id = ?').run(id)
+        recalculateScore()
+        broadcastTasksChanged()
         return { success: true }
     })
 
@@ -80,7 +98,9 @@ export function registerTaskIPC() {
       WHERE id = ?
     `).run(id)
         recalculateScore()
-        return db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)
+        const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)
+        broadcastTasksChanged()
+        return updated
     })
 
     // Goals IPC

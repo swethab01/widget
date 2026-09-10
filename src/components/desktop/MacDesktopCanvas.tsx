@@ -263,6 +263,7 @@ export function MacDesktopCanvas({
                     <LeetCodeWidget
                         isEditMode={isEditMode}
                         onClose={() => handleRemoveWidget(widget.id)}
+                        className="w-[330px] h-[320px]"
                     />
                 )
             case 'chatgpt':
@@ -285,16 +286,17 @@ export function MacDesktopCanvas({
                         onAdd={tasks.addTask}
                         onToggle={tasks.toggleTask}
                         onDelete={tasks.deleteTask}
+                        onTickAll={tasks.tickAllTasks}
                         onFocusTask={(taskId, min) => onStartFocus(taskId, min)}
                         onClose={() => handleRemoveWidget(widget.id)}
-                        className="w-80 md:w-96"
+                        className="w-[330px] max-h-[420px]"
                     />
                 )
             case 'goals':
                 return (
                     <MacGoalsWidget
                         onClose={() => handleRemoveWidget(widget.id)}
-                        className="w-80 md:w-96"
+                        className="w-[330px]"
                     />
                 )
             case 'focus':

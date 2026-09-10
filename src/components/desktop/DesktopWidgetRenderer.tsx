@@ -43,6 +43,28 @@ const WIDGET_META: Record<string, { title: string; icon: string; accent: string 
     'kev-date': { title: 'Date Tile', icon: '📅', accent: 'border-white/20 text-white' },
 }
 
+const WIDGET_WIDTH_MAP: Record<string, string> = {
+    'leetcode': 'w-[320px] max-w-[320px]',
+    'tasks': 'w-[320px] max-w-[320px]',
+    'goals': 'w-[320px] max-w-[320px]',
+    'chatgpt': 'w-[320px] max-w-[320px]',
+    'launchpad': 'w-[320px] max-w-[320px]',
+    'screentime': 'w-[176px] max-w-[176px]',
+    'kev-clock': 'w-[176px] max-w-[176px]',
+    'kev-battery': 'w-[176px] max-w-[176px]',
+    'kev-weather': 'w-[320px] max-w-[320px]',
+    'kev-calendar': 'w-[320px] max-w-[320px]',
+    'kev-music': 'w-[320px] max-w-[320px]',
+    'kev-comic': 'w-[220px] max-w-[220px]',
+    'kev-cd': 'w-[176px] max-w-[176px]',
+    'kev-quote': 'w-[176px] max-w-[176px]',
+    'kev-date': 'w-[176px] max-w-[176px]',
+    'kev-photo': 'w-[176px] max-w-[176px]',
+    'focus': 'w-[320px] max-w-[320px]',
+    'score': 'w-[180px] max-w-[180px]',
+    'clock': 'w-[280px] max-w-[280px]',
+}
+
 const QUICK_ADD_WIDGETS = [
     { id: 'leetcode',   name: 'LeetCode Daily',     icon: '⚡' },
     { id: 'screentime', name: 'Laptop Screen Time',  icon: '⏱' },
@@ -137,6 +159,7 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
                         onAdd={tasks.addTask}
                         onToggle={tasks.toggleTask}
                         onDelete={tasks.deleteTask}
+                        onTickAll={tasks.tickAllTasks}
                         onFocusTask={async (taskId, minutes) => {
                             if (window.electronAPI?.focus?.start) {
                                 await window.electronAPI.focus.start(taskId, minutes)
@@ -357,14 +380,14 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
     if (widgetId === 'leetcode') {
         return (
             <div
-                className="w-full h-full flex items-center justify-center bg-transparent select-none relative p-0"
+                className="w-full h-full min-h-screen flex items-center justify-center bg-transparent select-none relative p-3"
                 onContextMenu={(e) => {
                     e.preventDefault()
                     setShowQuickMenu((prev) => !prev)
                 }}
             >
                 <LeetCodeWidget
-                    className="w-full h-full"
+                    className="w-[320px] max-w-[320px]"
                     onClose={handleClose}
                 />
 
@@ -403,11 +426,123 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
         )
     }
 
+    if (widgetId === 'tasks') {
+        return (
+            <div
+                className="w-full h-full min-h-screen flex items-center justify-center bg-transparent select-none relative p-3"
+                onContextMenu={(e) => {
+                    e.preventDefault()
+                    setShowQuickMenu((prev) => !prev)
+                }}
+            >
+                <MacTasksWidget
+                    tasks={tasks.tasks}
+                    doneTasks={tasks.doneTasks}
+                    completionRate={tasks.completionRate}
+                    onAdd={tasks.addTask}
+                    onToggle={tasks.toggleTask}
+                    onDelete={tasks.deleteTask}
+                    onTickAll={tasks.tickAllTasks}
+                    onFocusTask={async (taskId, minutes) => {
+                        if (window.electronAPI?.focus?.start) {
+                            await window.electronAPI.focus.start(taskId, minutes)
+                        }
+                    }}
+                    onClose={handleClose}
+                    className="w-[320px] max-w-[320px]"
+                />
+
+                {/* Quick Add / Remove Popover Menu on Right Click */}
+                {showQuickMenu && (
+                    <div
+                        className="absolute top-2 left-2 z-50 bg-[#16161a]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2.5 shadow-2xl text-xs text-white min-w-[190px]"
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    >
+                        <div className="flex items-center justify-between pb-1.5 border-b border-white/10 mb-1.5">
+                            <span className="font-bold text-[11px] text-white/90">Tasks Options</span>
+                            <button
+                                onClick={() => setShowQuickMenu(false)}
+                                className="w-4 h-4 rounded-full bg-white/10 hover:bg-white/20 text-white/60 flex items-center justify-center text-[9px]"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <button
+                            onClick={handleOpenManager}
+                            className="w-full px-2 py-1.5 rounded-lg flex items-center gap-1.5 text-white/80 hover:text-white hover:bg-white/10 transition-colors text-left"
+                        >
+                            <span>🧩</span>
+                            <span>Widget Hub...</span>
+                        </button>
+                        <button
+                            onClick={handleClose}
+                            className="w-full px-2 py-1.5 rounded-lg flex items-center gap-1.5 text-rose-300 hover:text-white hover:bg-rose-500/30 transition-colors text-left"
+                        >
+                            <span>✕</span>
+                            <span>Close Widget</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    if (widgetId === 'goals') {
+        return (
+            <div
+                className="w-full h-full min-h-screen flex items-center justify-center bg-transparent select-none relative p-3"
+                onContextMenu={(e) => {
+                    e.preventDefault()
+                    setShowQuickMenu((prev) => !prev)
+                }}
+            >
+                <MacGoalsWidget
+                    onClose={handleClose}
+                    className="w-[320px] max-w-[320px]"
+                />
+
+                {/* Quick Add / Remove Popover Menu on Right Click */}
+                {showQuickMenu && (
+                    <div
+                        className="absolute top-2 left-2 z-50 bg-[#16161a]/95 backdrop-blur-2xl border border-white/15 rounded-2xl p-2.5 shadow-2xl text-xs text-white min-w-[190px]"
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    >
+                        <div className="flex items-center justify-between pb-1.5 border-b border-white/10 mb-1.5">
+                            <span className="font-bold text-[11px] text-white/90">Goals Options</span>
+                            <button
+                                onClick={() => setShowQuickMenu(false)}
+                                className="w-4 h-4 rounded-full bg-white/10 hover:bg-white/20 text-white/60 flex items-center justify-center text-[9px]"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <button
+                            onClick={handleOpenManager}
+                            className="w-full px-2 py-1.5 rounded-lg flex items-center gap-1.5 text-white/80 hover:text-white hover:bg-white/10 transition-colors text-left"
+                        >
+                            <span>🧩</span>
+                            <span>Widget Hub...</span>
+                        </button>
+                        <button
+                            onClick={handleClose}
+                            className="w-full px-2 py-1.5 rounded-lg flex items-center gap-1.5 text-rose-300 hover:text-white hover:bg-rose-500/30 transition-colors text-left"
+                        >
+                            <span>✕</span>
+                            <span>Close Widget</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    const cardWidthClass = WIDGET_WIDTH_MAP[widgetId] || 'w-[320px] max-w-[320px]'
+
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-transparent select-none relative p-1">
+        <div className="w-full h-full min-h-screen flex items-center justify-center bg-transparent select-none relative p-3">
             {/* Unified Sleek Widget Glass Wrapper */}
             <div
-                className="w-full h-full flex flex-col rounded-[24px] overflow-hidden shadow-2xl transition-all relative"
+                className={`${cardWidthClass} flex flex-col rounded-[24px] overflow-hidden shadow-2xl transition-all relative`}
                 style={{
                     background: 'rgba(11, 14, 23, 0.92)',
                     backdropFilter: 'blur(28px)',

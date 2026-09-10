@@ -14,6 +14,7 @@ import { registerLeetCodeIPC } from './ipc/leetcode'
 import { registerAIIPC } from './ipc/ai'
 import { ScreenTimeService } from './services/ScreenTimeService'
 import { getPulseInsight } from './services/PulseEngine'
+import { pinWindowToDesktopBottom, setWindowDesktopMode, stopDesktopPinDaemon } from './lib/desktopPin'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -39,9 +40,9 @@ const openWidgetWindows = new Map<string, BrowserWindow>()
 
 // Precise dimensions for each individual desktop widget card
 const WIDGET_DIMENSIONS: Record<string, { width: number; height: number }> = {
-    'leetcode': { width: 420, height: 580 },
-    'tasks': { width: 360, height: 460 },
-    'goals': { width: 360, height: 460 },
+    'leetcode': { width: 330, height: 320 },
+    'tasks': { width: 330, height: 380 },
+    'goals': { width: 330, height: 360 },
     'chatgpt': { width: 320, height: 140 },
     'launchpad': { width: 320, height: 164 },
     'screentime': { width: 176, height: 176 },
@@ -100,17 +101,16 @@ function getAppIcon(): string | undefined {
 
 function getStoredActiveWidgets(): string[] {
     try {
-        const val = getSetting('active_desktop_widgets', '')
-        if (val) {
+        const val = getSetting('active_desktop_widgets', 'NOT_SET')
+        if (val !== 'NOT_SET' && val !== '') {
             const parsed = JSON.parse(val)
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                // Filter out any old unwanted widgets
-                const filtered = parsed.filter((id: string) => !id.startsWith('kev-'))
-                if (filtered.length > 0) return filtered
+            if (Array.isArray(parsed)) {
+                // If user explicitly saved an empty list, respect it (never force unwanted widgets!)
+                return parsed.filter((id: string) => !id.startsWith('kev-'))
             }
         }
     } catch {}
-    // Focus widgets matching user requests: LeetCode, Screen Time, ChatGPT, App Launcher, Tasks
+    // First run default only if setting was never saved
     return ['leetcode', 'screentime', 'chatgpt', 'launchpad', 'tasks']
 }
 
@@ -139,7 +139,17 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
         }
     }
 
-    const dims = WIDGET_DIMENSIONS[widgetId] || { width: 240, height: 240 }
+    const defaultDims = WIDGET_DIMENSIONS[widgetId] || { width: 240, height: 240 }
+    let dims = { ...defaultDims }
+    try {
+        const savedSize = getSetting(`widget_size_${widgetId}`, '')
+        if (savedSize) {
+            const s = JSON.parse(savedSize)
+            if (typeof s.width === 'number' && typeof s.height === 'number') {
+                dims = { width: Math.max(200, s.width), height: Math.max(120, s.height) }
+            }
+        }
+    } catch {}
 
     // Position on desktop: check persisted position or compute smart default placement
     let posX = 100
@@ -181,14 +191,16 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
         title: `DevPulse — ${widgetId}`,
         width: dims.width,
         height: dims.height,
+        minWidth: 240,
+        minHeight: 120,
         x: posX,
         y: posY,
         frame: false,
         transparent: true,
         backgroundColor: '#00000000',
         hasShadow: false,
-        resizable: false,
-        skipTaskbar: false, // Must be false so it doesn't become a WS_EX_TOOLWINDOW that floats over ChatGPT/apps!
+        resizable: true,
+        skipTaskbar: true, // Pinned to desktop wallpaper - no taskbar clutter!
         alwaysOnTop: isAlwaysOnTop,
         icon: getAppIcon(),
         webPreferences: {
@@ -203,13 +215,17 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
     win.once('ready-to-show', () => {
         if (!win.isDestroyed()) {
             win.showInactive() // Show without stealing focus or jumping over ChatGPT / browser!
+            if (!isAlwaysOnTop) {
+                pinWindowToDesktopBottom(win)
+            }
         }
     })
 
     win.on('blur', () => {
-        // When user switches away to ChatGPT or browser, ensure it yields foreground
+        // When user switches away to ChatGPT or browser, immediately sink to desktop wallpaper behind apps
         if (!win.isDestroyed() && getSetting('alwaysOnTop', 'false') !== 'true') {
             win.setAlwaysOnTop(false)
+            pinWindowToDesktopBottom(win)
         }
     })
 
@@ -225,6 +241,16 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
         if (!win.isDestroyed()) {
             const [x, y] = win.getPosition()
             saveSetting(`widget_pos_${widgetId}`, JSON.stringify({ x, y }))
+            if (getSetting('alwaysOnTop', 'false') !== 'true') {
+                pinWindowToDesktopBottom(win)
+            }
+        }
+    })
+
+    win.on('resized', () => {
+        if (!win.isDestroyed()) {
+            const [w, h] = win.getSize()
+            saveSetting(`widget_size_${widgetId}`, JSON.stringify({ width: w, height: h }))
         }
     })
 
@@ -239,10 +265,13 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
 }
 
 function openWidget(widgetId: string) {
-    createWidgetWindow(widgetId)
+    const win = createWidgetWindow(widgetId)
     const active = getStoredActiveWidgets()
     if (!active.includes(widgetId)) {
         saveStoredActiveWidgets([...active, widgetId])
+    }
+    if (getSetting('alwaysOnTop', 'false') !== 'true') {
+        pinWindowToDesktopBottom(win)
     }
 }
 
@@ -473,14 +502,14 @@ function updateTrayMenu() {
         {
             label: isAlwaysOnTop
                 ? '✓ Float Above Other Windows (Always on Top)'
-                : 'Keep on Desktop Wallpaper (Behind Windows)',
+                : '📌 Pinned to Desktop Wallpaper (Behind Windows)',
             type: 'checkbox',
             checked: isAlwaysOnTop,
             click: () => {
                 const next = !isAlwaysOnTop
                 saveSetting('alwaysOnTop', String(next))
                 for (const win of openWidgetWindows.values()) {
-                    if (!win.isDestroyed()) win.setAlwaysOnTop(next)
+                    if (!win.isDestroyed()) setWindowDesktopMode(win, next)
                 }
                 updateTrayMenu()
             },
@@ -747,7 +776,7 @@ ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close
 ipcMain.on('window:setAlwaysOnTop', (_e, flag: boolean) => {
     saveSetting('alwaysOnTop', String(flag))
     for (const win of openWidgetWindows.values()) {
-        if (!win.isDestroyed()) win.setAlwaysOnTop(flag)
+        if (!win.isDestroyed()) setWindowDesktopMode(win, flag)
     }
     updateTrayMenu()
 })
@@ -820,8 +849,11 @@ app.whenReady().then(() => {
             createWidgetWindow(id)
         }
     } else {
-        // If first time with no widgets, open the Manager Hub so the user can pick
-        openManagerWindow()
+        // If first time with no setting ever saved, open the Manager Hub so the user can pick
+        const settingExists = getSetting('active_desktop_widgets', 'NOT_SET') !== 'NOT_SET'
+        if (!settingExists) {
+            openManagerWindow()
+        }
     }
 
     app.on('second-instance', () => {
@@ -851,5 +883,6 @@ app.on('activate', () => {
 })
 
 app.on('before-quit', () => {
+    stopDesktopPinDaemon()
     screenTimeService?.stop()
 })

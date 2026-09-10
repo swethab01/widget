@@ -272,7 +272,32 @@ function createFallbackDB(storageFilePath: string) {
         }
     }
 
-    const nowStr = () => new Date().toLocaleString()
+    const nowStr = () => {
+        const d = new Date()
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        const hh = String(d.getHours()).padStart(2, '0')
+        const mm = String(d.getMinutes()).padStart(2, '0')
+        const ss = String(d.getSeconds()).padStart(2, '0')
+        return `${y}-${m}-${day} ${hh}:${mm}:${ss}`
+    }
+
+    const matchesDate = (dateField: string | null | undefined, targetDate: string) => {
+        if (!dateField) return false
+        if (dateField.startsWith(targetDate)) return true
+        if (dateField.includes(targetDate)) return true
+        try {
+            const parsed = new Date(dateField)
+            if (!isNaN(parsed.getTime())) {
+                const y = parsed.getFullYear()
+                const m = String(parsed.getMonth() + 1).padStart(2, '0')
+                const day = String(parsed.getDate()).padStart(2, '0')
+                return `${y}-${m}-${day}` === targetDate
+            }
+        } catch {}
+        return false
+    }
 
     return {
         pragma: (_cmd: string) => {},
@@ -319,7 +344,7 @@ function createFallbackDB(storageFilePath: string) {
                     // Tasks update
                     if (cleanSql.includes('UPDATE tasks SET status = \'done\'')) {
                         const id = typeof arg0 === 'number' ? arg0 : args[0]
-                        const task = state.tasks.find((t) => t.id === id)
+                        const task = state.tasks.find((t) => String(t.id) === String(id))
                         if (task) {
                             task.status = 'done'
                             task.completed_at = nowStr()
@@ -330,8 +355,8 @@ function createFallbackDB(storageFilePath: string) {
 
                     if (cleanSql.includes('UPDATE tasks SET')) {
                         const patch = arg0 || {}
-                        const id = patch.id || args[0]
-                        const task = state.tasks.find((t) => t.id === id)
+                        const id = patch.id !== undefined ? patch.id : args[0]
+                        const task = state.tasks.find((t) => String(t.id) === String(id))
                         if (task) {
                             Object.assign(task, patch)
                             save()
@@ -342,7 +367,7 @@ function createFallbackDB(storageFilePath: string) {
                     // Tasks delete
                     if (cleanSql.includes('DELETE FROM tasks WHERE id = ?')) {
                         const id = args[0]
-                        state.tasks = state.tasks.filter((t) => t.id !== id)
+                        state.tasks = state.tasks.filter((t) => String(t.id) !== String(id))
                         save()
                         return { lastInsertRowid: id, changes: 1 }
                     }
@@ -516,10 +541,10 @@ function createFallbackDB(storageFilePath: string) {
 
                     // Tasks get by ID
                     if (cleanSql.includes('SELECT * FROM tasks WHERE id = ?')) {
-                        return state.tasks.find((t) => t.id === arg0)
+                        return state.tasks.find((t) => String(t.id) === String(arg0))
                     }
                     if (cleanSql.includes('SELECT title FROM tasks WHERE id = ?')) {
-                        const t = state.tasks.find((t) => t.id === arg0)
+                        const t = state.tasks.find((t) => String(t.id) === String(arg0))
                         return t ? { title: t.title } : undefined
                     }
 
@@ -527,7 +552,7 @@ function createFallbackDB(storageFilePath: string) {
                     if (cleanSql.includes('FROM tasks WHERE date(created_at) = ? OR date(completed_at) = ?')) {
                         const date = arg0
                         const relevant = state.tasks.filter(
-                            (t) => (t.created_at && t.created_at.includes(date)) || (t.completed_at && t.completed_at.includes(date))
+                            (t) => matchesDate(t.created_at, date) || matchesDate(t.completed_at, date)
                         )
                         return {
                             total: relevant.length,
@@ -544,7 +569,7 @@ function createFallbackDB(storageFilePath: string) {
                             if (cleanSql.includes("category) = 'github'")) {
                                 if (t.category?.toLowerCase() !== 'github') return false
                             }
-                            return t.completed_at && t.completed_at >= date
+                            return t.completed_at && matchesDate(t.completed_at, date)
                         })
                         return { c: filtered.length }
                     }
@@ -552,7 +577,7 @@ function createFallbackDB(storageFilePath: string) {
                     // Focus sessions count
                     if (cleanSql.includes('FROM focus_sessions WHERE date(started_at) = ? AND completed = 1')) {
                         const date = arg0
-                        const cnt = state.focus_sessions.filter((s) => s.completed === 1 && s.started_at?.includes(date)).length
+                        const cnt = state.focus_sessions.filter((s) => s.completed === 1 && matchesDate(s.started_at, date)).length
                         return { cnt, c: cnt }
                     }
                     if (cleanSql.includes('FROM focus_sessions WHERE completed = 1 AND date(started_at) >= ?')) {
@@ -611,9 +636,16 @@ function createFallbackDB(storageFilePath: string) {
                         if (cleanSql.includes('status = \'todo\'')) {
                             return state.tasks.filter((t) => t.status === 'todo')
                         }
-                        if (cleanSql.includes('date(created_at) = ? OR status = \'todo\'')) {
+                        if (cleanSql.includes('date(created_at) = ?') || cleanSql.includes('date(completed_at) = ?') || cleanSql.includes('status = \'todo\'')) {
                             const today = arg0
-                            return state.tasks.filter((t) => (t.created_at && t.created_at.includes(today)) || t.status === 'todo')
+                            const filtered = state.tasks.filter(
+                                (t) => matchesDate(t.created_at, today) || matchesDate(t.completed_at, today) || t.status === 'todo'
+                            )
+                            return filtered.sort((a, b) => {
+                                if (a.status !== b.status) return a.status === 'todo' ? -1 : 1
+                                const pRank = (p: string) => (p === 'high' ? 1 : p === 'medium' ? 2 : 3)
+                                return pRank(a.priority) - pRank(b.priority)
+                            })
                         }
                         return state.tasks
                     }

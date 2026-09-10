@@ -60,6 +60,10 @@
       {
         "from": "public/icon.png",
         "to": "icon.png"
+      },
+      {
+        "from": "electron/bin/desktop-pin.exe",
+        "to": "desktop-pin.exe"
       }
     ],
     "win": {

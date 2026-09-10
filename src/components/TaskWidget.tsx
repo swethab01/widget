@@ -233,7 +233,14 @@ export function TaskWidget({
                                 className="flex items-center justify-between px-2.5 py-1 rounded-xl opacity-40 hover:opacity-75 transition-opacity text-xs"
                             >
                                 <div className="flex items-center gap-2 truncate flex-1">
-                                    <span className="text-emerald-400 text-xs">✓</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => onToggle(task.id)}
+                                        className="w-4 h-4 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] flex items-center justify-center cursor-pointer hover:bg-emerald-500/30"
+                                        title="Click to mark incomplete"
+                                    >
+                                        ✓
+                                    </button>
                                     <span className="line-through text-white/60 truncate">{task.title}</span>
                                 </div>
                                 <button

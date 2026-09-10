@@ -7,6 +7,7 @@ import { Scratchpad } from './pages/Scratchpad'
 import { CommandPalette } from './components/CommandPalette'
 import { MacDesktopCanvas } from './components/desktop/MacDesktopCanvas'
 import { DesktopWidgetRenderer } from './components/desktop/DesktopWidgetRenderer'
+import { DesktopWidgetDeck } from './components/desktop/DesktopWidgetDeck'
 import { WidgetHub } from './components/desktop/WidgetHub'
 import type { Task, WidgetMode, DesktopWallpaper } from './types'
 
@@ -22,6 +23,12 @@ export default function App() {
   const isManager = urlParams.get('manager') === 'true'
   if (isManager) {
     return <WidgetHub />
+  }
+
+  // Pure Desktop Widget Deck (compact authentic widgets, no giant fake OS website)
+  const viewParam = urlParams.get('view')
+  if (!viewParam || viewParam === 'widgets' || viewParam === 'deck') {
+    return <DesktopWidgetDeck />
   }
   const [page, setPage] = useState('dashboard')
   const [mode, setMode] = useState<WidgetMode>('canvas')
