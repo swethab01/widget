@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Task, NewTask } from '../types'
+import type { Task, NewTask, TaskStatus } from '../types'
 
 const LOCAL_STORAGE_KEY = 'devpulse_tasks_backup'
 
@@ -172,7 +172,7 @@ export function useTasks() {
         if (!task) return
 
         const isCurrentlyDone = task.status === 'done'
-        const nextStatus = isCurrentlyDone ? 'todo' : 'done'
+        const nextStatus: TaskStatus = isCurrentlyDone ? 'todo' : 'done'
         const nextCompletedAt = isCurrentlyDone ? null : new Date().toISOString()
 
         // 0ms instant optimistic update

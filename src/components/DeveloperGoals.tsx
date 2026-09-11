@@ -8,13 +8,15 @@ export function DeveloperGoals() {
     const [editTarget, setEditTarget] = useState('')
 
     useEffect(() => {
-        window.electronAPI.goals.getAll().then(setGoals)
+        window.electronAPI?.goals?.getAll?.().then((data) => {
+            if (Array.isArray(data)) setGoals(data)
+        })
     }, [])
 
     const handleSaveTarget = async (goal: Goal) => {
         const target = parseInt(editTarget)
         if (!isNaN(target) && target > 0) {
-            await window.electronAPI.goals.set(goal.type, target)
+            await window.electronAPI?.goals?.set?.(goal.type, target)
             setGoals((prev) => prev.map((g) => (g.id === goal.id ? { ...g, target } : g)))
         }
         setEditingId(null)

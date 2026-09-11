@@ -8,13 +8,15 @@ export function useFocus() {
 
     useEffect(() => {
         // Fetch any active session on mount
-        window.electronAPI.focus.getActive().then((active) => {
+        window.electronAPI?.focus?.getActive?.().then((active) => {
             if (active) setFocusState(active)
         })
 
         // Count today's sessions
-        window.electronAPI.focus.getHistory().then((history) => {
-            setSessions(history.filter((s) => s.completed).length)
+        window.electronAPI?.focus?.getHistory?.().then((history) => {
+            if (Array.isArray(history)) {
+                setSessions(history.filter((s) => s.completed).length)
+            }
         })
 
         const handleTick = (...args: unknown[]) => {
@@ -29,20 +31,20 @@ export function useFocus() {
             setTimeout(() => setIsComplete(false), 4000)
         }
 
-        window.electronAPI.on('focus:tick', handleTick)
-        window.electronAPI.on('focus:complete', handleComplete)
+        window.electronAPI?.on?.('focus:tick', handleTick)
+        window.electronAPI?.on?.('focus:complete', handleComplete)
 
         return () => {
-            window.electronAPI.off('focus:tick', handleTick)
-            window.electronAPI.off('focus:complete', handleComplete)
+            window.electronAPI?.off?.('focus:tick', handleTick)
+            window.electronAPI?.off?.('focus:complete', handleComplete)
         }
     }, [])
 
     const start = useCallback(async (taskId: number | null, minutes: number) => {
-        const res = (await window.electronAPI.focus.start(taskId, minutes)) as {
+        const res = (await window.electronAPI?.focus?.start?.(taskId, minutes)) as {
             success: boolean
             session?: { taskTitle: string }
-        }
+        } | undefined
         setFocusState({
             remainingSeconds: minutes * 60,
             durationMinutes: minutes,
@@ -52,22 +54,23 @@ export function useFocus() {
     }, [])
 
     const pause = useCallback(async () => {
-        await window.electronAPI.focus.pause()
+        await window.electronAPI?.focus?.pause?.()
         setFocusState((s) => s ? { ...s, paused: true } : s)
     }, [])
 
     const resume = useCallback(async () => {
-        await window.electronAPI.focus.resume()
+        await window.electronAPI?.focus?.resume?.()
         setFocusState((s) => s ? { ...s, paused: false } : s)
     }, [])
 
     const stop = useCallback(async () => {
-        await window.electronAPI.focus.stop()
+        await window.electronAPI?.focus?.stop?.()
         setFocusState(null)
     }, [])
 
-    const progress = focusState
-        ? 1 - focusState.remainingSeconds / (focusState.durationMinutes * 60)
+    const totalSecs = (focusState?.durationMinutes || 0) * 60
+    const progress = focusState && totalSecs > 0
+        ? Math.min(1, Math.max(0, 1 - focusState.remainingSeconds / totalSecs))
         : 0
 
     return { focusState, sessions, isComplete, start, pause, resume, stop, progress }

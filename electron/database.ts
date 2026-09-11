@@ -512,11 +512,11 @@ function createFallbackDB(storageFilePath: string) {
                         return { lastInsertRowid: id, changes: 1 }
                     }
                     if (cleanSql.includes('UPDATE leetcode_problems SET completed =')) {
-                        const id = args[1] !== undefined ? args[1] : (typeof arg0 === 'number' ? arg0 : args[0])
-                        const problem = (state.leetcode_problems || []).find((p) => p.id === id)
+                        const id = args[2] !== undefined ? args[2] : (args[1] !== undefined ? args[1] : (typeof arg0 === 'number' ? arg0 : args[0]))
+                        const problem = (state.leetcode_problems || []).find((p) => String(p.id) === String(id))
                         if (problem) {
-                            problem.completed = problem.completed ? 0 : 1
-                            problem.completed_at = problem.completed ? nowStr() : null
+                            problem.completed = typeof args[0] === 'number' ? args[0] : (problem.completed ? 0 : 1)
+                            problem.completed_at = args[1] !== undefined ? args[1] : (problem.completed ? nowStr() : null)
                             save()
                         }
                         return { lastInsertRowid: id, changes: 1 }
@@ -618,6 +618,19 @@ function createFallbackDB(storageFilePath: string) {
                     if (cleanSql.includes('FROM settings WHERE key = ?')) {
                         const val = state.settings[arg0]
                         return val !== undefined ? { value: val } : undefined
+                    }
+
+                    // LeetCode problems
+                    if (cleanSql.includes('FROM leetcode_problems')) {
+                        if (cleanSql.includes('COUNT(*)')) {
+                            return { count: (state.leetcode_problems || []).length }
+                        }
+                        const problem = (state.leetcode_problems || []).find((p) => String(p.id) === String(arg0))
+                        if (!problem) return undefined
+                        if (cleanSql.includes('completed FROM')) {
+                            return { completed: problem.completed }
+                        }
+                        return problem
                     }
 
                     return undefined

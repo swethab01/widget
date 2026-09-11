@@ -146,7 +146,9 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
         if (savedSize) {
             const s = JSON.parse(savedSize)
             if (typeof s.width === 'number' && typeof s.height === 'number') {
-                dims = { width: Math.max(200, s.width), height: Math.max(120, s.height) }
+                const minAllowedW = Math.min(160, defaultDims.width)
+                const minAllowedH = Math.min(100, defaultDims.height)
+                dims = { width: Math.max(minAllowedW, s.width), height: Math.max(minAllowedH, s.height) }
             }
         }
     } catch {}
@@ -187,12 +189,15 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
 
     const isAlwaysOnTop = getSetting('alwaysOnTop', 'false') === 'true'
 
+    const minW = Math.min(160, dims.width)
+    const minH = Math.min(100, dims.height)
+
     const win = new BrowserWindow({
         title: `DevPulse — ${widgetId}`,
         width: dims.width,
         height: dims.height,
-        minWidth: 240,
-        minHeight: 120,
+        minWidth: minW,
+        minHeight: minH,
         x: posX,
         y: posY,
         frame: false,

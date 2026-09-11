@@ -10,8 +10,8 @@ export function Analytics() {
 
     useEffect(() => {
         // Fetch 35 days for heatmap, 7 days for bar charts
-        window.electronAPI.score.getHistory(35).then((h) => setHistory(h || []))
-        window.electronAPI.screenTime.getSummary().then((h) => setScreenHistory(h || []))
+        window.electronAPI?.score?.getHistory?.(35)?.then((h) => setHistory(h || []))
+        window.electronAPI?.screenTime?.getSummary?.()?.then((h) => setScreenHistory(h || []))
     }, [])
 
     const recent7 = history.slice(-7)
