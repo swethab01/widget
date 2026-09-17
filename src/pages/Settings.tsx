@@ -25,12 +25,16 @@ export function SettingsPage() {
     const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
     const [saved, setSaved] = useState(false)
     const [username, setUsername] = useState('')
+    const [chatgptInput, setChatgptInput] = useState('')
+    const [apiKeyInput, setApiKeyInput] = useState('')
 
     useEffect(() => {
         window.electronAPI.settings.getAll().then((s) => {
             if (s) {
                 setSettings({ ...DEFAULT_SETTINGS, ...s })
                 setUsername(s.username || 'Developer')
+                setChatgptInput(s.chatgpt_account_id || '')
+                setApiKeyInput(s.openai_api_key || '')
             }
         })
     }, [])
@@ -205,40 +209,123 @@ export function SettingsPage() {
                 </div>
 
                 {/* ChatGPT Connection */}
-                <div className="p-2.5 rounded-xl bg-surface-base border border-surface-border mb-2">
-                    <div className="flex items-center justify-between mb-1.5">
+                <div className="p-3 rounded-xl bg-surface-base border border-surface-border mb-2">
+                    <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5">
                             <span className="text-emerald-400 font-bold text-xs">✦</span>
                             <span className="text-xs font-semibold text-text-primary">ChatGPT & OpenAI</span>
                         </div>
                         {settings.chatgpt_account_id ? (
-                            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                                @{settings.chatgpt_account_id}
+                            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">
+                                ✓ Connected: @{settings.chatgpt_account_id}
                             </span>
                         ) : (
                             <span className="text-[10px] text-text-muted">Not connected</span>
                         )}
                     </div>
-                    <div className="space-y-2 mt-2">
+                    <div className="space-y-3 mt-2">
+                        {/* Main Account Email */}
                         <div>
-                            <label className="block text-[10px] text-text-muted mb-0.5">ChatGPT Account ID / Email:</label>
-                            <input
-                                type="text"
-                                defaultValue={settings.chatgpt_account_id || ''}
-                                placeholder="e.g. your_email@example.com"
-                                onBlur={(e) => setSetting('chatgpt_account_id', e.target.value.trim())}
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-surface-card border border-surface-border text-xs text-text-primary placeholder-text-muted/40 font-mono focus:outline-none focus:border-emerald-400"
-                            />
+                            <label className="block text-[10px] text-text-muted mb-1">ChatGPT Main Account ID / Email:</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={chatgptInput}
+                                    onChange={(e) => setChatgptInput(e.target.value)}
+                                    placeholder="e.g. sanjaynathiya81@gmail.com"
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-surface-card border border-surface-border text-xs text-text-primary placeholder-text-muted/40 font-mono focus:outline-none focus:border-emerald-400"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        const cleanEmail = chatgptInput.trim()
+                                        if (!cleanEmail) {
+                                            alert('Please enter your ChatGPT account email.')
+                                            return
+                                        }
+                                        await setSetting('chatgpt_account_id', cleanEmail)
+                                        await setSetting('chatgptIntegration', 'true')
+                                        alert(`✓ Connected! Linked main account: ${cleanEmail}`)
+                                    }}
+                                    className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold text-xs transition-colors cursor-pointer shrink-0 shadow-sm"
+                                >
+                                    Connect
+                                </button>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-[10px] text-text-muted mb-0.5">OpenAI API Key (for in-widget live AI):</label>
-                            <input
-                                type="password"
-                                defaultValue={settings.openai_api_key || ''}
-                                placeholder="sk-..."
-                                onBlur={(e) => setSetting('openai_api_key', e.target.value.trim())}
-                                className="w-full px-2.5 py-1.5 rounded-lg bg-surface-card border border-surface-border text-xs text-text-primary placeholder-text-muted/40 font-mono focus:outline-none focus:border-emerald-400"
-                            />
+
+                        {/* Direct Session Launch Buttons */}
+                        <div className="flex items-center gap-2 pt-0.5">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (window.electronAPI?.chatgpt?.openDesktopWeb) {
+                                        window.electronAPI.chatgpt.openDesktopWeb()
+                                    } else {
+                                        window.open('https://chatgpt.com', '_blank')
+                                    }
+                                }}
+                                className="flex-1 py-1.5 px-3 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                                title="Open persistent ChatGPT session window to log into your account"
+                            >
+                                <span>🌐</span>
+                                <span>Log In to ChatGPT Session</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (window.electronAPI?.chatgpt?.openApp) {
+                                        window.electronAPI.chatgpt.openApp()
+                                    } else {
+                                        window.open('https://chatgpt.com', '_blank')
+                                    }
+                                }}
+                                className="py-1.5 px-3 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                                title="Launch the Windows ChatGPT Desktop App"
+                            >
+                                <span>🖥️</span>
+                                <span>Open Desktop App</span>
+                            </button>
+                        </div>
+
+                        {/* Optional OpenAI API Key */}
+                        <div className="pt-2 border-t border-surface-border/50">
+                            <label className="block text-[10px] text-text-muted mb-1">OpenAI API Key (Optional, for in-widget instant AI):</label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="password"
+                                    value={apiKeyInput}
+                                    onChange={(e) => setApiKeyInput(e.target.value)}
+                                    placeholder="sk-..."
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-surface-card border border-surface-border text-xs text-text-primary placeholder-text-muted/40 font-mono focus:outline-none focus:border-emerald-400"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        const key = apiKeyInput.trim()
+                                        if (!key) {
+                                            await setSetting('openai_api_key', '')
+                                            alert('API Key cleared.')
+                                            return
+                                        }
+                                        if (window.electronAPI?.chatgpt?.verifyKey) {
+                                            const res = await window.electronAPI.chatgpt.verifyKey(key)
+                                            if (res.valid) {
+                                                await setSetting('openai_api_key', key)
+                                                alert('✓ OpenAI API Key verified and saved successfully!')
+                                            } else {
+                                                alert(`API Key check: ${res.error || 'Invalid key'}`)
+                                            }
+                                        } else {
+                                            await setSetting('openai_api_key', key)
+                                            alert('✓ API Key saved!')
+                                        }
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-colors cursor-pointer shrink-0"
+                                >
+                                    Save Key
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

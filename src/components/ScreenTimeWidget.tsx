@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import type { ScreenTimeSummary } from '../types'
+import { useState, useMemo } from 'react'
+import type { ScreenTimeSummary, AppUsage } from '../types'
 
 interface ScreenTimeWidgetProps {
     summary?: ScreenTimeSummary
@@ -8,11 +8,28 @@ interface ScreenTimeWidgetProps {
     className?: string
 }
 
+const getCategoryColor = (cat?: string) => {
+    switch (cat) {
+        case 'Development':
+            return '#007aff'
+        case 'Browser':
+            return '#5ac8fa'
+        case 'Entertainment':
+            return '#ff9500'
+        case 'Communication':
+            return '#34c759'
+        default:
+            return '#ffcc00'
+    }
+}
+
 export function ScreenTimeWidget({
     summary,
     onClose,
     className = '',
 }: ScreenTimeWidgetProps) {
+    const [selectedBarIndex, setSelectedBarIndex] = useState<number | null>(null)
+
     // If totalSeconds is tracked, compute formatted hours & mins, otherwise default to "2h 12m"
     const totalSec = summary?.totalSeconds && summary.totalSeconds > 60 ? summary.totalSeconds : 7920
     const codingSec = summary?.codingSeconds || Math.round(totalSec * 0.65)
@@ -38,10 +55,47 @@ export function ScreenTimeWidget({
         return `${m}m`
     }
 
+    // Curated and tracked app items associated with graph bars
+    const appItems = useMemo(() => {
+        const raw = summary?.apps && summary.apps.length > 0 ? summary.apps : []
+        const cleanName = (name: string) => {
+            const base = name.replace(/\.exe$/i, '').trim()
+            const lower = base.toLowerCase()
+            if (lower === 'code') return 'VS Code'
+            if (lower === 'chrome') return 'Chrome'
+            if (lower === 'powershell' || lower === 'cmd') return 'Terminal'
+            if (lower.includes('antigravity')) return 'Antigravity'
+            if (lower === 'electron') return 'DevPulse'
+            if (lower === 'spotify') return 'Spotify'
+            return base.charAt(0).toUpperCase() + base.slice(1)
+        }
+
+        if (raw.length > 0) {
+            return raw.slice(0, 3).map((a, i) => {
+                const dur = a.durationSeconds || a.duration_seconds || 0
+                return {
+                    name: cleanName(a.appName),
+                    rawName: a.appName,
+                    duration: dur > 0 ? formatAppTime(dur) : `${20 + i * 15}m`,
+                    category: a.category || 'Development',
+                    timeSlot: i === 0 ? '7:00 AM' : i === 1 ? '8:00 AM' : '9:00 AM',
+                }
+            })
+        }
+
+        return [
+            { name: 'Terminal', rawName: 'powershell', duration: '18m', category: 'Development', timeSlot: '7:00 AM' },
+            { name: 'Chrome', rawName: 'chrome', duration: '28m', category: 'Browser', timeSlot: '8:00 AM' },
+            { name: 'VS Code', rawName: 'code', duration: formattedTime, category: 'Development', timeSlot: '9:00 AM' },
+        ]
+    }, [summary, formattedTime])
+
     const isTileMode = Boolean(onClose || className.includes('176px') || className.includes('max-w-[176px]'))
 
     // STANDALONE 2x2 APPLE SCREEN TIME TILE (Exact match to reference widget)
     if (isTileMode) {
+        const currentApp = selectedBarIndex !== null ? appItems[selectedBarIndex % appItems.length] : null
+
         return (
             <div
                 className={`w-[176px] h-[176px] bg-[#1a1a1c] rounded-[28px] p-3.5 flex flex-col justify-between select-none relative group border border-white/[0.08] shadow-[0_16px_36px_rgba(0,0,0,0.7)] overflow-hidden font-sans ${className}`}
@@ -62,7 +116,7 @@ export function ScreenTimeWidget({
                     </button>
                 )}
 
-                {/* Top Text: "2h 12m" */}
+                {/* Top Text: "2h 12m" or "43m" */}
                 <div className="pt-0.5 pl-0.5">
                     <span className="text-[28px] font-medium tracking-tight text-white leading-none">
                         {formattedTime}
@@ -72,7 +126,12 @@ export function ScreenTimeWidget({
                 {/* Chart Area with Dashed Grid and Stacked Bars */}
                 <div className="relative w-full h-[106px] flex flex-col justify-between">
                     {/* Grid container: 78px tall with 3 horizontal dashed lines and Y-axis labels */}
-                    <div className="relative w-full h-[78px]">
+                    <div
+                        className="relative w-full h-[78px] cursor-pointer"
+                        onClick={() => setSelectedBarIndex((prev) => (prev === null ? 2 : (prev + 1) % appItems.length))}
+                        title="Click graph to view applications used"
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                    >
                         {/* Horizontal Dashed Lines & Y-Axis Labels (60m, 30m, 0) */}
                         <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
                             <div className="flex items-center w-full h-0">
@@ -105,8 +164,14 @@ export function ScreenTimeWidget({
                         <div className="absolute left-[62px] bottom-0 flex items-end gap-[4px] z-10" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
                             {/* Bar 1: Stacked Blue + Orange + Dark Gray */}
                             <div
-                                className="w-[8px] h-[36px] rounded-t-[1.5px] overflow-hidden flex flex-col-reverse shadow-sm cursor-pointer hover:brightness-110 transition-all"
-                                title="7:00 AM - 8:00 AM: 28m"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedBarIndex(0)
+                                }}
+                                className={`w-[8px] h-[36px] rounded-t-[1.5px] overflow-hidden flex flex-col-reverse shadow-sm cursor-pointer hover:brightness-125 transition-all ${
+                                    selectedBarIndex === 0 ? 'ring-2 ring-white/90 scale-105 z-20 brightness-110' : selectedBarIndex !== null ? 'opacity-50' : ''
+                                }`}
+                                title={`${appItems[0]?.name}: ${appItems[0]?.duration} (${appItems[0]?.timeSlot})`}
                             >
                                 <div className="w-full h-[18px] bg-[#007aff]" />
                                 <div className="w-full h-[4px] bg-[#ff9500]" />
@@ -115,8 +180,14 @@ export function ScreenTimeWidget({
 
                             {/* Bar 2: Stacked Blue + Cyan + Yellow + Dark Gray */}
                             <div
-                                className="w-[8px] h-[50px] rounded-t-[1.5px] overflow-hidden flex flex-col-reverse shadow-sm cursor-pointer hover:brightness-110 transition-all"
-                                title="8:00 AM - 9:00 AM: 40m"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedBarIndex(1)
+                                }}
+                                className={`w-[8px] h-[50px] rounded-t-[1.5px] overflow-hidden flex flex-col-reverse shadow-sm cursor-pointer hover:brightness-125 transition-all ${
+                                    selectedBarIndex === 1 ? 'ring-2 ring-white/90 scale-105 z-20 brightness-110' : selectedBarIndex !== null ? 'opacity-50' : ''
+                                }`}
+                                title={`${appItems[1]?.name}: ${appItems[1]?.duration} (${appItems[1]?.timeSlot})`}
                             >
                                 <div className="w-full h-[8px] bg-[#007aff]" />
                                 <div className="w-full h-[24px] bg-[#5ac8fa]" />
@@ -126,16 +197,75 @@ export function ScreenTimeWidget({
 
                             {/* Bar 3: Tall Solid Blue Pillar */}
                             <div
-                                className="w-[8px] h-[70px] rounded-t-[1.5px] bg-[#007aff] shadow-sm cursor-pointer hover:brightness-110 transition-all"
-                                title="9:00 AM - 10:00 AM: 55m"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedBarIndex(2)
+                                }}
+                                className={`w-[8px] h-[70px] rounded-t-[1.5px] bg-[#007aff] shadow-sm cursor-pointer hover:brightness-125 transition-all ${
+                                    selectedBarIndex === 2 ? 'ring-2 ring-white/90 scale-105 z-20 brightness-110' : selectedBarIndex !== null ? 'opacity-50' : ''
+                                }`}
+                                title={`${appItems[2]?.name}: ${appItems[2]?.duration} (${appItems[2]?.timeSlot})`}
                             />
                         </div>
                     </div>
 
-                    {/* X-Axis Labels: "2 AM" and "8 AM" */}
-                    <div className="relative w-full h-[18px] text-[10px] text-[#7c7c82] font-normal pt-1 flex select-none">
-                        <span className="absolute left-1">2 AM</span>
-                        <span className="absolute left-[54px]">8 AM</span>
+                    {/* X-Axis / App Details: "In the down" */}
+                    <div
+                        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                        className="relative w-full h-[18px]"
+                    >
+                        {selectedBarIndex === null || !currentApp ? (
+                            <div
+                                className="w-full h-full text-[10px] text-[#7c7c82] font-normal pt-1 flex items-center justify-between select-none cursor-pointer hover:text-white transition-colors"
+                                onClick={() => setSelectedBarIndex(2)}
+                                title="Click to view apps used"
+                            >
+                                <span className="absolute left-1">2 AM</span>
+                                <span className="absolute left-[54px]">8 AM</span>
+                                <span className="text-[9px] text-white/40 hover:text-white ml-auto flex items-center gap-0.5 font-mono">
+                                    <span>Apps</span>
+                                    <span>›</span>
+                                </span>
+                            </div>
+                        ) : (
+                            <div
+                                className="w-full h-full pt-0.5 flex items-center justify-between text-[11px] select-none cursor-pointer group/app animate-fade-in"
+                                onClick={() => setSelectedBarIndex((prev) => (prev === null ? 0 : (prev + 1) % appItems.length))}
+                                title="Click to cycle apps"
+                            >
+                                {/* App Icon / Dot & Name */}
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                    <span
+                                        className="w-2 h-2 rounded-full shrink-0 shadow-sm animate-pulse"
+                                        style={{ backgroundColor: getCategoryColor(currentApp.category) }}
+                                    />
+                                    <span className="font-semibold text-white truncate text-[11px] tracking-tight max-w-[85px]">
+                                        {currentApp.name}
+                                    </span>
+                                </div>
+
+                                {/* Duration & Reset */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <span
+                                        className="font-mono font-bold text-[11px]"
+                                        style={{ color: getCategoryColor(currentApp.category) }}
+                                    >
+                                        {currentApp.duration}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            setSelectedBarIndex(null)
+                                        }}
+                                        className="text-[9px] text-white/30 hover:text-white ml-0.5 px-1 py-0.2 rounded hover:bg-white/10 transition-colors"
+                                        title="Back to timeline"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

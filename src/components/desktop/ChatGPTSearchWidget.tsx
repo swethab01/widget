@@ -194,10 +194,17 @@ export function ChatGPTSearchWidget({
             >
                 <div className="w-full h-12 flex items-center rounded-full bg-[#38383a] hover:bg-[#404044] focus-within:bg-[#404044] border border-white/[0.08] focus-within:border-white/20 px-3.5 transition-all shadow-md">
                     {/* OpenAI Rosette Logo SVG */}
-                    <div className="mr-3 flex-shrink-0 text-white cursor-pointer hover:opacity-80 transition-opacity" onClick={handleOpenApp} title="Open ChatGPT App">
+                    <div
+                        className="mr-3 flex-shrink-0 text-white cursor-pointer hover:opacity-80 transition-opacity relative group/logo"
+                        onClick={handleOpenFloatingSession}
+                        title={config.accountId ? `Connected Account: ${config.accountId} — Click to open ChatGPT session` : 'Click to open ChatGPT session'}
+                    >
                         <svg className="w-[22px] h-[22px] text-white" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M21.578 9.07a5.955 5.955 0 0 0-.48-3.666 6.046 6.046 0 0 0-4.04-3.11 6.033 6.033 0 0 0-5.32 1.258 6.038 6.038 0 0 0-4.498.053 6.048 6.048 0 0 0-3.37 3.824 6.03 6.03 0 0 0 .546 5.437 5.958 5.958 0 0 0-.48 3.667 6.047 6.047 0 0 0 4.04 3.11 6.033 6.033 0 0 0 5.32-1.258 6.04 6.04 0 0 0 4.498-.053 6.048 6.048 0 0 0 3.37-3.824 6.03 6.03 0 0 0-.546-5.438zm-8.318 11.23a4.57 4.57 0 0 1-2.91-1.042l.142-.08 3.498-2.02a.76.76 0 0 0 .383-.664v-4.94l1.488.86v4.067a4.58 4.58 0 0 1-2.6 3.82zm-7.697-3.32a4.568 4.568 0 0 1-.546-3.05l.143.085 3.497 2.02a.768.768 0 0 0 .767 0l4.278-2.47v1.72l-3.52 2.032a4.58 4.58 0 0 1-4.619-.337zm-1.12-8.37a4.569 4.569 0 0 1 2.365-2.008V9.1a.76.76 0 0 0 .383.663l4.28 2.47-1.488.86-3.52-2.033a4.583 4.583 0 0 1-2.02-4.46zm14.493 3.61l-4.278-2.47 1.488-.86 3.52 2.033a4.58 4.58 0 0 1 2.02 4.46 4.57 4.57 0 0 1-2.365 2.008v-2.498a.76.76 0 0 0-.385-.663zm2.502-3.23l-.143-.085-3.498-2.02a.768.768 0 0 0-.767 0l-4.278 2.47V7.635l3.52-2.032a4.58 4.58 0 0 1 5.165 3.385v.002zm-9.84-2.54a4.57 4.57 0 0 1 2.91 1.042l-.142.08-3.498 2.02a.76.76 0 0 0-.383.664v4.94l-1.488-.86V7.27a4.58 4.58 0 0 1 2.6-3.82z" />
                         </svg>
+                        {config.accountId && (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#38383a]" />
+                        )}
                     </div>
 
                     {/* Text input with "Ask anything" */}

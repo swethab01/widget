@@ -380,14 +380,14 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
     if (widgetId === 'leetcode') {
         return (
             <div
-                className="w-full h-full min-h-screen flex items-center justify-center bg-transparent select-none relative p-3"
+                className="w-full h-full flex flex-col items-center justify-start bg-transparent select-none relative p-2 overflow-hidden"
                 onContextMenu={(e) => {
                     e.preventDefault()
                     setShowQuickMenu((prev) => !prev)
                 }}
             >
                 <LeetCodeWidget
-                    className="w-[320px] max-w-[320px]"
+                    className="w-full max-w-[320px] max-h-full flex-1"
                     onClose={handleClose}
                 />
 
@@ -429,7 +429,7 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
     if (widgetId === 'tasks') {
         return (
             <div
-                className="w-full h-full min-h-screen flex items-center justify-center bg-transparent select-none relative p-3"
+                className="w-full h-full flex flex-col items-center justify-start bg-transparent select-none relative p-2 overflow-hidden"
                 onContextMenu={(e) => {
                     e.preventDefault()
                     setShowQuickMenu((prev) => !prev)
@@ -449,7 +449,7 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
                         }
                     }}
                     onClose={handleClose}
-                    className="w-[320px] max-w-[320px]"
+                    className="w-full max-w-[320px] max-h-full flex-1"
                 />
 
                 {/* Quick Add / Remove Popover Menu on Right Click */}
@@ -490,7 +490,7 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
     if (widgetId === 'goals') {
         return (
             <div
-                className="w-full h-full min-h-screen flex items-center justify-center bg-transparent select-none relative p-3"
+                className="w-full h-full flex flex-col items-center justify-start bg-transparent select-none relative p-2 overflow-hidden"
                 onContextMenu={(e) => {
                     e.preventDefault()
                     setShowQuickMenu((prev) => !prev)
@@ -498,7 +498,7 @@ export function DesktopWidgetRenderer({ widgetId }: DesktopWidgetRendererProps) 
             >
                 <MacGoalsWidget
                     onClose={handleClose}
-                    className="w-[320px] max-w-[320px]"
+                    className="w-full max-w-[320px] max-h-full flex-1"
                 />
 
                 {/* Quick Add / Remove Popover Menu on Right Click */}

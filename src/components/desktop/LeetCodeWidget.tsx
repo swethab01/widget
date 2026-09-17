@@ -376,20 +376,33 @@ export function LeetCodeWidget({
 
     return (
         <div
-            className={`mac-widget-tile p-3 w-[320px] max-w-[320px] select-none relative group transition-all duration-200 flex flex-col gap-2 rounded-[22px] overflow-hidden bg-gradient-to-b from-[#141724]/95 via-[#0e1017]/95 to-[#0a0b10]/95 border border-white/[0.12] shadow-2xl ${className}`}
+            className={`mac-widget-tile p-3 w-[320px] max-w-[320px] max-h-full select-none relative group transition-all duration-200 flex flex-col gap-2 rounded-[22px] overflow-hidden bg-gradient-to-b from-[#141724]/95 via-[#0e1017]/95 to-[#0a0b10]/95 border border-white/[0.12] shadow-2xl ${className}`}
         >
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2 flex-1 min-h-0">
                 {/* 1. Sleek Compact Header */}
                 <div
                     className="flex items-center justify-between mb-2 shrink-0 cursor-grab active:cursor-grabbing"
                     style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
                     title="Drag to move widget anywhere on desktop"
                 >
-                    {/* Left: Icon & Username Pill */}
+                    {/* Left: Icon & Username Pill or Back Button */}
                     <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#ffa116] to-[#e68a00] flex items-center justify-center text-xs font-black text-black shadow-[0_0_12px_rgba(255,161,22,0.4)] shrink-0">
-                            ⚡
-                        </div>
+                        {activeTab !== 'stats' ? (
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('stats')}
+                                style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                                className="flex items-center gap-1 text-[10px] font-bold text-black bg-gradient-to-r from-[#ffa116] to-[#ffb347] hover:brightness-110 px-2 py-0.5 rounded-lg shadow-sm transition-all cursor-pointer shrink-0 active:scale-95"
+                                title="Back to Stats Overview"
+                            >
+                                <span>←</span>
+                                <span>Back</span>
+                            </button>
+                        ) : (
+                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#ffa116] to-[#e68a00] flex items-center justify-center text-xs font-black text-black shadow-[0_0_12px_rgba(255,161,22,0.4)] shrink-0">
+                                ⚡
+                            </div>
+                        )}
                         <div className="flex items-center gap-1 min-w-0">
                             <span className="font-extrabold text-[11px] tracking-wider uppercase text-white/90 font-mono">
                                 LEETCODE
@@ -752,6 +765,21 @@ export function LeetCodeWidget({
                     {/* TAB 2: PRACTICE CHECKLIST */}
                     {activeTab === 'checklist' && (
                         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                            {/* Practice Subheader with Back Navigation */}
+                            <div className="flex items-center justify-between mb-1.5 shrink-0 px-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('stats')}
+                                    className="flex items-center gap-1 text-[10px] font-bold text-[#ffa116] hover:text-amber-300 transition-colors cursor-pointer"
+                                    title="Return to Stats Overview"
+                                >
+                                    <span>← Back to Overview</span>
+                                </button>
+                                <span className="text-[10px] font-mono text-white/50">
+                                    {checklistCompletedCount}/{problems.length} solved
+                                </span>
+                            </div>
+
                             {/* Search & Filter Bar */}
                             <div className="flex items-center gap-1.5 mb-1.5 shrink-0">
                                 <input
@@ -818,7 +846,7 @@ export function LeetCodeWidget({
                             </div>
 
                             {/* Problem List */}
-                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 space-y-1 pr-0.5 min-h-0">
+                            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 space-y-1 pr-0.5 min-h-0 max-h-[190px]">
                                 {filteredProblems.length === 0 ? (
                                     <div className="text-center py-6 text-xs text-white/40 font-mono">
                                         No problems match your filter
@@ -899,11 +927,19 @@ export function LeetCodeWidget({
                     {activeTab === 'activity' && (
                         <div className="flex-1 flex flex-col justify-between p-2 rounded-xl bg-[#141724]/80 border border-white/[0.08] overflow-hidden">
                             <div className="flex items-center justify-between text-[10px] font-mono text-white/60 mb-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('stats')}
+                                    className="flex items-center gap-1 text-[10px] font-bold text-[#ffa116] hover:text-amber-300 transition-colors cursor-pointer"
+                                    title="Return to Stats Overview"
+                                >
+                                    <span>← Back</span>
+                                </button>
                                 <span className="font-bold text-white">
                                     {profile?.totalActiveDays ?? 197} Active Days
                                 </span>
                                 <span className="text-[#ffa116] font-bold">
-                                    🔥 {profile?.maxStreak ?? 46}d Best Streak
+                                    🔥 {profile?.maxStreak ?? 46}d Best
                                 </span>
                             </div>
 

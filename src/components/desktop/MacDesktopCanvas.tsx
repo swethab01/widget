@@ -263,7 +263,7 @@ export function MacDesktopCanvas({
                     <LeetCodeWidget
                         isEditMode={isEditMode}
                         onClose={() => handleRemoveWidget(widget.id)}
-                        className="w-[330px] h-[320px]"
+                        className="w-[330px]"
                     />
                 )
             case 'chatgpt':

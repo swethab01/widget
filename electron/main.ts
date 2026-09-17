@@ -40,7 +40,7 @@ const openWidgetWindows = new Map<string, BrowserWindow>()
 
 // Precise dimensions for each individual desktop widget card
 const WIDGET_DIMENSIONS: Record<string, { width: number; height: number }> = {
-    'leetcode': { width: 330, height: 320 },
+    'leetcode': { width: 330, height: 420 },
     'tasks': { width: 330, height: 380 },
     'goals': { width: 330, height: 360 },
     'chatgpt': { width: 320, height: 140 },
@@ -149,6 +149,9 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
                 const minAllowedW = Math.min(160, defaultDims.width)
                 const minAllowedH = Math.min(100, defaultDims.height)
                 dims = { width: Math.max(minAllowedW, s.width), height: Math.max(minAllowedH, s.height) }
+                if (widgetId === 'leetcode') {
+                    dims.height = Math.max(400, dims.height)
+                }
             }
         }
     } catch {}
