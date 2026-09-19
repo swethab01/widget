@@ -7,10 +7,10 @@ interface LeetCodeWidgetProps {
     isEditMode?: boolean
 }
 
-// Generate realistic sample calendar for 197 active days
+// Generate realistic sample calendar for active days
 const SAMPLE_CALENDAR: Record<string, number> = (() => {
     const cal: Record<string, number> = {}
-    const refNow = Math.floor(Date.now() / 1000)
+    const refNow = Math.floor(Date.now() / 86400000) * 86400
     for (let i = 0; i < 365; i++) {
         if ((i * 7 + 3) % 11 > 3) {
             cal[String(refNow - i * 86400)] = ((i % 4) + 1)
@@ -340,22 +340,152 @@ export function LeetCodeWidget({
         }
     }, [totalSolved, totalQuestions, easySolved, medSolved, hardSolved])
 
-    // Compact 16-week contribution heatmap
-    const heatmapWeeks = useMemo(() => {
-        const weeksCount = 16
-        const days = []
-        const now = new Date()
+    // Normalize LeetCode submissionCalendar into a date-indexed lookup map
+    const submissionMap = useMemo(() => {
+        const map = new Map<string, number>()
         const calendar = profile?.submissionCalendar || {}
 
-        for (let i = weeksCount * 7 - 1; i >= 0; i--) {
-            const d = new Date(now)
-            d.setDate(now.getDate() - i)
-            const timestamp = Math.floor(d.setHours(0, 0, 0, 0) / 1000)
-            const count = calendar[String(timestamp)] || 0
-            days.push({ count, date: d.toISOString().slice(0, 10) })
+        for (const [key, count] of Object.entries(calendar)) {
+            const num = Number(key)
+            if (!isNaN(num) && num > 0) {
+                const tsMs = num < 1e11 ? num * 1000 : num
+                const d = new Date(tsMs)
+                // LeetCode timestamps are strictly UTC midnight
+                const utcStr = d.toISOString().slice(0, 10)
+                map.set(utcStr, (map.get(utcStr) || 0) + Number(count))
+
+                // Also record client local date string to guard against client timezone offsets
+                const y = d.getFullYear()
+                const m = String(d.getMonth() + 1).padStart(2, '0')
+                const day = String(d.getDate()).padStart(2, '0')
+                const localStr = `${y}-${m}-${day}`
+                if (localStr !== utcStr) {
+                    map.set(localStr, Math.max(map.get(localStr) || 0, Number(count)))
+                }
+            }
         }
+
+        // If today is ticked as solved in widget, ensure today's count >= 1
+        if (isSolvedToday) {
+            const now = new Date()
+            const todayUtc = now.toISOString().slice(0, 10)
+            const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+            map.set(todayUtc, Math.max(1, map.get(todayUtc) || 0))
+            map.set(todayLocal, Math.max(1, map.get(todayLocal) || 0))
+        }
+
+        return map
+    }, [profile?.submissionCalendar, isSolvedToday])
+
+    // Accurate streak calculation taking into account LeetCode reported streak + local tick
+    const streakStats = useMemo(() => {
+        const rawStreak = profile?.streak || 0
+        const now = new Date()
+        const todayUtc = now.toISOString().slice(0, 10)
+        const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        const hasTodayActivity = (submissionMap.get(todayUtc) || 0) > 0 || (submissionMap.get(todayLocal) || 0) > 0 || isSolvedToday
+
+        // Check if LeetCode API calendar already includes today's submission
+        const cal = profile?.submissionCalendar || {}
+        let leetCodeHasToday = false
+        for (const [key] of Object.entries(cal)) {
+            const num = Number(key)
+            if (!isNaN(num)) {
+                const d = new Date(num < 1e11 ? num * 1000 : num)
+                if (d.toISOString().slice(0, 10) === todayUtc) {
+                    leetCodeHasToday = true
+                    break
+                }
+            }
+        }
+
+        // Compute consecutive active days backwards
+        let consecutiveDays = 0
+        const checkDate = new Date(now)
+        if (!hasTodayActivity) {
+            checkDate.setDate(checkDate.getDate() - 1)
+        }
+        for (let i = 0; i < 365; i++) {
+            const y = checkDate.getFullYear()
+            const m = String(checkDate.getMonth() + 1).padStart(2, '0')
+            const d = String(checkDate.getDate()).padStart(2, '0')
+            const key = `${y}-${m}-${d}`
+            if ((submissionMap.get(key) || 0) > 0) {
+                consecutiveDays++
+                checkDate.setDate(checkDate.getDate() - 1)
+            } else {
+                break
+            }
+        }
+
+        // LeetCode's reported streak includes Streak Freezes, so rawStreak might be >= consecutiveDays
+        // If user marked solved today in widget and LeetCode didn't already have today's submission, increment streak by 1
+        const activeStreak = Math.max(rawStreak, consecutiveDays) + (isSolvedToday && !leetCodeHasToday ? 1 : 0)
+        const bestStreak = Math.max(activeStreak, profile?.maxStreak || profile?.streak || 46)
+        const totalActiveDays = Math.max(profile?.totalActiveDays || 0, submissionMap.size)
+
+        return {
+            currentStreak: activeStreak,
+            bestStreak,
+            totalActiveDays,
+            hasTodayActivity,
+        }
+    }, [profile, submissionMap, isSolvedToday])
+
+    // Structured 16-week grid with Sunday-to-Saturday columns (112 days)
+    const heatmapData = useMemo(() => {
+        const weeksCount = 16
+        const totalDays = weeksCount * 7
+        const now = new Date()
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        const todayUtcStr = now.toISOString().slice(0, 10)
+
+        // End on Saturday of current week to ensure 7-day columns align (Sunday to Saturday)
+        const dayOfWeek = now.getDay()
+        const daysUntilSaturday = 6 - dayOfWeek
+        const endDate = new Date(now)
+        endDate.setDate(now.getDate() + daysUntilSaturday)
+        endDate.setHours(23, 59, 59, 999)
+
+        const days: Array<{
+            date: string
+            count: number
+            isToday: boolean
+            isFuture: boolean
+            dayOfWeek: number
+            month: string
+        }> = []
+
+        for (let i = totalDays - 1; i >= 0; i--) {
+            const d = new Date(endDate)
+            d.setDate(endDate.getDate() - i)
+            const y = d.getFullYear()
+            const m = String(d.getMonth() + 1).padStart(2, '0')
+            const dd = String(d.getDate()).padStart(2, '0')
+            const dateStr = `${y}-${m}-${dd}`
+            const utcDateStr = d.toISOString().slice(0, 10)
+
+            const isFuture = d.getTime() > now.getTime() && dateStr !== todayStr
+            const isToday = dateStr === todayStr || utcDateStr === todayUtcStr
+            const count = isFuture ? 0 : Math.max(submissionMap.get(dateStr) || 0, submissionMap.get(utcDateStr) || 0)
+            const month = d.toLocaleDateString(undefined, { month: 'short' })
+
+            days.push({
+                date: dateStr,
+                count,
+                isToday,
+                isFuture,
+                dayOfWeek: d.getDay(),
+                month,
+            })
+        }
+
         return days
-    }, [profile])
+    }, [submissionMap])
+
+    const activeDaysInWindow = useMemo(() => {
+        return heatmapData.filter((d) => d.count > 0).length
+    }, [heatmapData])
 
     const dailyTitle = dailyQuestion?.title || '121. Best Time to Buy and Sell Stock'
     const dailyDifficulty = dailyQuestion?.difficulty || 'Easy'
@@ -379,30 +509,17 @@ export function LeetCodeWidget({
             className={`mac-widget-tile p-3 w-[320px] max-w-[320px] max-h-full select-none relative group transition-all duration-200 flex flex-col gap-2 rounded-[22px] overflow-hidden bg-gradient-to-b from-[#141724]/95 via-[#0e1017]/95 to-[#0a0b10]/95 border border-white/[0.12] shadow-2xl ${className}`}
         >
             <div className="flex flex-col gap-2 flex-1 min-h-0">
-                {/* 1. Sleek Compact Header */}
+                {/* 1. Sleek Stable Header */}
                 <div
                     className="flex items-center justify-between mb-2 shrink-0 cursor-grab active:cursor-grabbing"
                     style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
                     title="Drag to move widget anywhere on desktop"
                 >
-                    {/* Left: Icon & Username Pill or Back Button */}
+                    {/* Left: Icon & Username Pill */}
                     <div className="flex items-center gap-1.5 min-w-0">
-                        {activeTab !== 'stats' ? (
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('stats')}
-                                style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-                                className="flex items-center gap-1 text-[10px] font-bold text-black bg-gradient-to-r from-[#ffa116] to-[#ffb347] hover:brightness-110 px-2 py-0.5 rounded-lg shadow-sm transition-all cursor-pointer shrink-0 active:scale-95"
-                                title="Back to Stats Overview"
-                            >
-                                <span>←</span>
-                                <span>Back</span>
-                            </button>
-                        ) : (
-                            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#ffa116] to-[#e68a00] flex items-center justify-center text-xs font-black text-black shadow-[0_0_12px_rgba(255,161,22,0.4)] shrink-0">
-                                ⚡
-                            </div>
-                        )}
+                        <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#ffa116] to-[#e68a00] flex items-center justify-center text-xs font-black text-black shadow-[0_0_12px_rgba(255,161,22,0.4)] shrink-0">
+                            ⚡
+                        </div>
                         <div className="flex items-center gap-1 min-w-0">
                             <span className="font-extrabold text-[11px] tracking-wider uppercase text-white/90 font-mono">
                                 LEETCODE
@@ -411,7 +528,7 @@ export function LeetCodeWidget({
                                 type="button"
                                 onClick={() => openExternal(`https://leetcode.com/u/${profile?.username || 's4njay'}/`)}
                                 style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-                                className="flex items-center gap-1 text-[10px] font-semibold text-[#ffa116] bg-[#ffa116]/10 hover:bg-[#ffa116]/20 px-1.5 py-0.5 rounded-full border border-[#ffa116]/30 transition-all cursor-pointer truncate max-w-[100px]"
+                                className="flex items-center gap-1 text-[10px] font-semibold text-[#ffa116] bg-[#ffa116]/10 hover:bg-[#ffa116]/20 px-1.5 py-0.5 rounded-full border border-[#ffa116]/30 transition-all cursor-pointer truncate max-w-[110px]"
                                 title="Open Profile on LeetCode"
                             >
                                 <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
@@ -420,19 +537,21 @@ export function LeetCodeWidget({
                         </div>
                     </div>
 
-                    {/* Right: Streak & Control Buttons */}
+                    {/* Right: Streak Badge & Control Buttons */}
                     <div
                         className="flex items-center gap-1 shrink-0"
                         style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                     >
-                        {/* Streak Badge */}
-                        <span
-                            className="flex items-center gap-0.5 text-[10px] font-bold text-[#ffa116] bg-[#ffa116]/10 px-1.5 py-0.5 rounded-full border border-[#ffa116]/30 font-mono shadow-sm"
-                            title="Consecutive Day Streak"
+                        {/* Interactive Streak Pill */}
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab(activeTab === 'activity' ? 'stats' : 'activity')}
+                            className="flex items-center gap-1 text-[10px] font-bold text-[#ffa116] bg-[#ffa116]/15 hover:bg-[#ffa116]/25 px-2 py-0.5 rounded-full border border-[#ffa116]/40 font-mono shadow-sm transition-all cursor-pointer active:scale-95"
+                            title={`Current Streak: ${streakStats.currentStreak}d (Best: ${streakStats.bestStreak}d) — Click to view Activity`}
                         >
                             <span>🔥</span>
-                            <span>{profile?.streak ?? 46}d</span>
-                        </span>
+                            <span>{streakStats.currentStreak}d</span>
+                        </button>
 
                         {/* Refresh */}
                         <button
@@ -551,7 +670,7 @@ export function LeetCodeWidget({
                         onClick={() => setActiveTab('activity')}
                         className={`flex-1 py-1 px-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
                             activeTab === 'activity'
-                                ? 'bg-[#202538] text-white shadow-sm border border-white/15'
+                                ? 'bg-emerald-500/20 text-emerald-400 shadow-sm border border-emerald-500/40 font-black'
                                 : 'text-white/50 hover:text-white'
                         }`}
                     >
@@ -710,7 +829,18 @@ export function LeetCodeWidget({
                                         <span>⚡</span>
                                         <span>Daily Problem</span>
                                     </span>
-                                    <span>{new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveTab('activity')}
+                                            className="text-[#ffa116] hover:text-amber-300 font-bold flex items-center gap-0.5 cursor-pointer transition-colors"
+                                            title="View Activity Calendar & Heatmap"
+                                        >
+                                            <span>🔥</span>
+                                            <span>{streakStats.currentStreak}d streak</span>
+                                        </button>
+                                        <span>{new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                    </div>
                                 </div>
 
                                 <div className="flex items-center justify-between gap-2">
@@ -923,55 +1053,111 @@ export function LeetCodeWidget({
                         </div>
                     )}
 
-                    {/* TAB 3: ACTIVITY HEATMAP */}
+                    {/* TAB 3: ACTIVITY HEATMAP & STREAK */}
                     {activeTab === 'activity' && (
                         <div className="flex-1 flex flex-col justify-between p-2 rounded-xl bg-[#141724]/80 border border-white/[0.08] overflow-hidden">
-                            <div className="flex items-center justify-between text-[10px] font-mono text-white/60 mb-2 shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveTab('stats')}
-                                    className="flex items-center gap-1 text-[10px] font-bold text-[#ffa116] hover:text-amber-300 transition-colors cursor-pointer"
-                                    title="Return to Stats Overview"
-                                >
-                                    <span>← Back</span>
-                                </button>
-                                <span className="font-bold text-white">
-                                    {profile?.totalActiveDays ?? 197} Active Days
-                                </span>
-                                <span className="text-[#ffa116] font-bold">
-                                    🔥 {profile?.maxStreak ?? 46}d Best
-                                </span>
-                            </div>
+                            {/* Streak & Activity 3-Column Banner */}
+                            <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/[0.08] mb-2 shrink-0">
+                                {/* Current Streak */}
+                                <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-gradient-to-b from-[#ffa116]/15 to-transparent border border-[#ffa116]/25">
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs">🔥</span>
+                                        <span className="text-sm font-black text-white font-mono leading-none">
+                                            {streakStats.currentStreak}d
+                                        </span>
+                                    </div>
+                                    <span className="text-[8px] font-bold text-[#ffa116] uppercase tracking-wider mt-1">
+                                        Streak
+                                    </span>
+                                </div>
 
-                            {/* 16-Week Mini Heatmap Grid */}
-                            <div className="flex-1 flex items-center justify-center overflow-hidden">
-                                <div className="grid grid-flow-col grid-rows-7 gap-1">
-                                    {heatmapWeeks.map((day, idx) => {
-                                        let bg = 'bg-white/[0.06]'
-                                        if (day.count > 3) bg = 'bg-[#10b981]'
-                                        else if (day.count > 1) bg = 'bg-[#10b981]/70'
-                                        else if (day.count > 0) bg = 'bg-[#10b981]/40'
+                                {/* Total Active Days */}
+                                <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                                    <span className="text-sm font-black text-white font-mono leading-none">
+                                        {streakStats.totalActiveDays}
+                                    </span>
+                                    <span className="text-[8px] font-semibold text-white/50 uppercase tracking-wider mt-1">
+                                        Active Days
+                                    </span>
+                                </div>
 
-                                        return (
-                                            <div
-                                                key={idx}
-                                                className={`w-2.5 h-2.5 rounded-[2px] ${bg} transition-transform hover:scale-125`}
-                                                title={`${day.date}: ${day.count} submissions`}
-                                            />
-                                        )
-                                    })}
+                                {/* Best Streak */}
+                                <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                                    <div className="flex items-center gap-0.5">
+                                        <span className="text-[11px] text-amber-400">⚡</span>
+                                        <span className="text-sm font-black text-amber-400 font-mono leading-none">
+                                            {streakStats.bestStreak}d
+                                        </span>
+                                    </div>
+                                    <span className="text-[8px] font-semibold text-white/50 uppercase tracking-wider mt-1">
+                                        Best Streak
+                                    </span>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between text-[9px] font-mono text-white/40 mt-1.5 shrink-0">
-                                <span>Less</span>
+                            {/* 16-Week Contribution Heatmap with Weekday Indicators */}
+                            <div className="flex-1 flex items-center justify-center overflow-hidden py-1">
+                                <div className="flex items-center gap-1.5">
+                                    {/* Weekday indicators (Mon, Wed, Fri) */}
+                                    <div className="grid grid-rows-7 gap-1 text-[7px] font-mono text-white/30 h-[94px] items-center leading-none">
+                                        <span className="h-2.5" />
+                                        <span className="h-2.5 flex items-center">M</span>
+                                        <span className="h-2.5" />
+                                        <span className="h-2.5 flex items-center">W</span>
+                                        <span className="h-2.5" />
+                                        <span className="h-2.5 flex items-center">F</span>
+                                        <span className="h-2.5" />
+                                    </div>
+
+                                    {/* 16-Week Columns (7 rows each) */}
+                                    <div className="grid grid-flow-col grid-rows-7 gap-1">
+                                        {heatmapData.map((day, idx) => {
+                                            let bg = 'bg-white/[0.06] border border-transparent'
+                                            if (day.isFuture) {
+                                                bg = 'bg-white/[0.02] border border-transparent opacity-20'
+                                            } else if (day.count >= 4) {
+                                                bg = 'bg-[#10b981] border border-emerald-300/80 shadow-[0_0_6px_rgba(16,185,129,0.5)]'
+                                            } else if (day.count >= 2) {
+                                                bg = 'bg-[#10b981]/75 border border-emerald-400/40'
+                                            } else if (day.count >= 1) {
+                                                bg = 'bg-[#10b981]/45 border border-emerald-500/30'
+                                            }
+
+                                            const isTodayRing = day.isToday
+                                                ? day.count > 0
+                                                    ? 'ring-1.5 ring-amber-400 ring-offset-1 ring-offset-[#141724]'
+                                                    : 'ring-1 ring-dashed ring-amber-400/80 ring-offset-1 ring-offset-[#141724]'
+                                                : ''
+
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    className={`w-2.5 h-2.5 rounded-[2px] ${bg} ${isTodayRing} transition-all duration-150 hover:scale-135 hover:z-10 cursor-pointer`}
+                                                    title={
+                                                        day.isFuture
+                                                            ? `${day.date}: Future`
+                                                            : `${day.date}${day.isToday ? ' (Today)' : ''}: ${day.count} ${day.count === 1 ? 'problem' : 'problems'} solved`
+                                                    }
+                                                />
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Heatmap Legend & Window Stat */}
+                            <div className="flex items-center justify-between text-[9px] font-mono text-white/40 mt-1 shrink-0 px-1">
+                                <span className="text-white/50">
+                                    {activeDaysInWindow} active in 16w
+                                </span>
                                 <div className="flex items-center gap-1">
-                                    <div className="w-2 h-2 rounded-[2px] bg-white/[0.06]" />
-                                    <div className="w-2 h-2 rounded-[2px] bg-[#10b981]/40" />
-                                    <div className="w-2 h-2 rounded-[2px] bg-[#10b981]/70" />
-                                    <div className="w-2 h-2 rounded-[2px] bg-[#10b981]" />
+                                    <span>Less</span>
+                                    <div className="w-2 h-2 rounded-[2px] bg-white/[0.06]" title="0" />
+                                    <div className="w-2 h-2 rounded-[2px] bg-[#10b981]/45 border border-emerald-500/30" title="1" />
+                                    <div className="w-2 h-2 rounded-[2px] bg-[#10b981]/75 border border-emerald-400/40" title="2-3" />
+                                    <div className="w-2 h-2 rounded-[2px] bg-[#10b981] border border-emerald-300/80" title="4+" />
+                                    <span>More</span>
                                 </div>
-                                <span>More</span>
                             </div>
                         </div>
                     )}

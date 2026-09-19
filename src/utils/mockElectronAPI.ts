@@ -487,6 +487,17 @@ export function setupMockElectronAPI(): void {
             closeAll: async () => console.log('[Mock Widgets] closeAll'),
         },
 
+        launchApp: (appKey: string) => {
+            console.log('[Mock App] launchApp:', appKey)
+            if (appKey === 'leetcode') window.open('https://leetcode.com', '_blank')
+            else if (appKey === 'chatgpt') window.open('https://chatgpt.com', '_blank')
+            else if (appKey === 'github') window.open('https://github.com', '_blank')
+            else if (appKey === 'vscode') window.open('https://vscode.dev', '_blank')
+            else if (appKey === 'antigravity') window.open('https://antigravity.google', '_blank')
+            else if (appKey === 'brave') window.open('https://search.brave.com', '_blank')
+            else if (appKey === 'settings') console.log('[Mock App] Open Settings')
+        },
+
         openExternal: (url: string) => {
             window.open(url, '_blank')
         },

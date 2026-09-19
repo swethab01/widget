@@ -195,13 +195,36 @@ export function registerLeetCodeIPC() {
                 }
             } catch {}
 
+            // Calculate historical max streak from submissionCalendar
+            let computedMaxStreak = user.userCalendar?.streak || 0
+            try {
+                const epochDays = Object.keys(subCal)
+                    .map((k) => Math.floor(Number(k) / 86400))
+                    .filter((n) => !isNaN(n))
+                    .sort((a, b) => a - b)
+
+                let maxRun = 0
+                let currRun = 0
+                let prevDay: number | null = null
+                for (const day of epochDays) {
+                    if (prevDay === null || day === prevDay + 1) {
+                        currRun++
+                    } else if (day > prevDay + 1) {
+                        currRun = 1
+                    }
+                    if (currRun > maxRun) maxRun = currRun
+                    prevDay = day
+                }
+                computedMaxStreak = Math.max(computedMaxStreak, maxRun)
+            } catch {}
+
             const profileData: LeetCodeProfileData = {
                 username: user.username,
                 realName: user.profile?.realName,
                 avatar: user.profile?.userAvatar,
                 ranking: user.profile?.ranking,
                 streak: user.userCalendar?.streak || 0,
-                maxStreak: user.userCalendar?.streak || 0,
+                maxStreak: computedMaxStreak,
                 totalActiveDays: user.userCalendar?.totalActiveDays || 0,
                 solved: {
                     all: solvedMap['All'] || 0,

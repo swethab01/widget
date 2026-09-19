@@ -99,9 +99,9 @@ export function getWindowHwnd(win: BrowserWindow): string | null {
 
 /**
  * Pins an Electron BrowserWindow directly to the desktop wallpaper level:
- * - Clears WS_EX_TOPMOST
- * - Clears WS_EX_TOOLWINDOW (prevents floating above active apps)
- * - Sends to HWND_BOTTOM (behind all application windows, sits directly on desktop)
+ * - Clears WS_EX_TOPMOST & WS_EX_TOOLWINDOW
+ * - Sinks to HWND_BOTTOM (behind all application windows, sits directly on desktop)
+ * - Registers in native daemon to continuously keep behind active applications & websites
  */
 export function pinWindowToDesktopBottom(win: BrowserWindow): void {
     if (process.platform !== 'win32') return
@@ -111,6 +111,19 @@ export function pinWindowToDesktopBottom(win: BrowserWindow): void {
     if (!hwnd) return
 
     sendCommand('bottom', hwnd)
+}
+
+/**
+ * Unpins an Electron BrowserWindow from desktop tracking
+ */
+export function unpinWindowFromDesktop(win: BrowserWindow): void {
+    if (process.platform !== 'win32') return
+    if (!win || win.isDestroyed()) return
+
+    const hwnd = getWindowHwnd(win)
+    if (!hwnd) return
+
+    sendCommand('remove', hwnd)
 }
 
 /**

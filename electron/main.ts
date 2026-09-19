@@ -14,7 +14,7 @@ import { registerLeetCodeIPC } from './ipc/leetcode'
 import { registerAIIPC } from './ipc/ai'
 import { ScreenTimeService } from './services/ScreenTimeService'
 import { getPulseInsight } from './services/PulseEngine'
-import { pinWindowToDesktopBottom, setWindowDesktopMode, stopDesktopPinDaemon } from './lib/desktopPin'
+import { pinWindowToDesktopBottom, unpinWindowFromDesktop, setWindowDesktopMode, stopDesktopPinDaemon } from './lib/desktopPin'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -222,15 +222,21 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
 
     win.once('ready-to-show', () => {
         if (!win.isDestroyed()) {
-            win.showInactive() // Show without stealing focus or jumping over ChatGPT / browser!
+            win.showInactive() // Show without stealing focus or jumping over active apps/websites!
             if (!isAlwaysOnTop) {
                 pinWindowToDesktopBottom(win)
+                setTimeout(() => {
+                    if (!win.isDestroyed()) pinWindowToDesktopBottom(win)
+                }, 80)
+                setTimeout(() => {
+                    if (!win.isDestroyed()) pinWindowToDesktopBottom(win)
+                }, 250)
             }
         }
     })
 
     win.on('blur', () => {
-        // When user switches away to ChatGPT or browser, immediately sink to desktop wallpaper behind apps
+        // When user switches away to any application or website, immediately sink to desktop wallpaper behind apps
         if (!win.isDestroyed() && getSetting('alwaysOnTop', 'false') !== 'true') {
             win.setAlwaysOnTop(false)
             pinWindowToDesktopBottom(win)
@@ -263,6 +269,7 @@ function createWidgetWindow(widgetId: string): BrowserWindow {
     })
 
     win.on('closed', () => {
+        unpinWindowFromDesktop(win)
         openWidgetWindows.delete(widgetId)
         const cur = getStoredActiveWidgets().filter((id) => id !== widgetId)
         saveStoredActiveWidgets(cur)
@@ -287,6 +294,7 @@ function closeWidget(widgetId: string) {
     const win = openWidgetWindows.get(widgetId)
     if (win && !win.isDestroyed()) {
         try {
+            unpinWindowFromDesktop(win)
             win.hide()
             win.destroy()
         } catch (e) {
@@ -715,6 +723,17 @@ function launchApplication(appKey: string): void {
             })
             break
         }
+        case 'leetcode': {
+            if (openWidgetWindows.has('leetcode')) {
+                const win = openWidgetWindows.get('leetcode')!
+                if (!win.isDestroyed()) {
+                    win.show()
+                    win.focus()
+                }
+            }
+            shell.openExternal('https://leetcode.com')
+            break
+        }
         case 'edge':
         case 'web': {
             const candidates = [
@@ -746,13 +765,11 @@ function launchApplication(appKey: string): void {
             break
         }
         case 'terminal': {
-            const candidates = [
-                path.join(localAppData, 'Microsoft', 'WindowsApps', 'wt.exe'),
-                'C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
-                'C:\\WINDOWS\\System32\\cmd.exe',
-            ]
-            if (tryExecutables(candidates)) return
-            exec('start powershell.exe')
+            exec('start wt.exe 2>nul || start powershell.exe', (err) => {
+                if (err) {
+                    exec('start cmd.exe')
+                }
+            })
             break
         }
         case 'settings': {
