@@ -489,7 +489,7 @@ export function setupMockElectronAPI(): void {
 
         launchApp: (appKey: string) => {
             console.log('[Mock App] launchApp:', appKey)
-            if (appKey === 'leetcode') window.open('https://leetcode.com', '_blank')
+            if (appKey === 'edge') window.open('https://www.microsoft.com/edge', '_blank')
             else if (appKey === 'chatgpt') window.open('https://chatgpt.com', '_blank')
             else if (appKey === 'github') window.open('https://github.com', '_blank')
             else if (appKey === 'vscode') window.open('https://vscode.dev', '_blank')
